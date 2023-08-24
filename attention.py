@@ -15,6 +15,11 @@ class ScaledDotProductAttention(torch.nn.Module):
         # Initialize the PyTorch Module superclass
         super().__init__()
 
+        # Input quantization
+        self.q_quant = QuantIdentity()
+        self.k_quant = QuantIdentity()
+        self.v_quant = QuantIdentity()
+
         # TODO: Make type and bit-width of quantization configurable
 
         # Quantizes the output of the query-key matmul
@@ -27,6 +32,10 @@ class ScaledDotProductAttention(torch.nn.Module):
     # Attention forward pass: Compute attention weights from queries and keys
     # and applies them to the values
     def forward(self, query, key, value):
+        # Quantize the model inputs
+        query = self.q_quant(query)
+        key = self.k_quant(key)
+        value = self.v_quant(value)
         # Scale derived from embedding dimension size
         scale = torch.sqrt(torch.as_tensor(query.shape[-1]))
         # Multiply queries and keys and quantize the result
