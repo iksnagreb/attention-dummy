@@ -1,0 +1,6 @@
+# PyCharm IDE folder
+.idea/
+# Local python environment
+.venv/
+# Exported ONNX models
+*.onnx
