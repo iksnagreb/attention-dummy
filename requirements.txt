@@ -1,2 +1,4 @@
 torch~=1.13.1
 brevitas~=0.9.1
+qonnx~=0.3.0
+git+https://github.com/iksnagreb/finn.git@feature/attention
