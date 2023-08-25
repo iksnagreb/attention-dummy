@@ -45,9 +45,15 @@ if __name__ == '__main__':
     model = model.transform(ConvertDivToMul())
 
     # Get rid of the transpose operation applied to the key matrix
+    #   Note: This might be the reason for the shape inference error of the
+    #   ConvertQONNXtoFINN transformation below.
     model = model.transform(FoldTransposeIntoQuantInit())
     # Turn all quantization layers into MultiThresholds
     model = model.transform(ConvertQuantActToMultiThreshold())
+
+    # # Absorbs multiplications into thresholds (applies to the scale of the QK
+    # # matmul output)
+    # model = model.transform(AbsorbMulIntoMultiThreshold())
 
     # # Try to apply streamlining transformation
     # #   Note: Does not work for attentions, as it assumes weight initializers
