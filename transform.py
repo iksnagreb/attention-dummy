@@ -44,10 +44,10 @@ if __name__ == '__main__':
     # matmul output)
     model = model.transform(ConvertDivToMul())
 
-    # Get rid of the transpose operation applied to the key matrix
-    #   Note: This might be the reason for the shape inference error of the
-    #   ConvertQONNXtoFINN transformation below.
-    model = model.transform(FoldTransposeIntoQuantInit())
+    # # Get rid of the transpose operation applied to the key matrix
+    # #   Note: This might be the reason for the shape inference error of the
+    # #   ConvertQONNXtoFINN transformation below.
+    # model = model.transform(FoldTransposeIntoQuantInit())
     # Turn all quantization layers into MultiThresholds
     model = model.transform(ConvertQuantActToMultiThreshold())
 
@@ -55,14 +55,14 @@ if __name__ == '__main__':
     # # matmul output)
     # model = model.transform(AbsorbMulIntoMultiThreshold())
 
+    # # Convert from QONNX graph to FINN nodes/operators
+    # #   Note: Somehow fails due to shape inference?
+    # model = model.transform(ConvertQONNXtoFINN())
+
     # # Try to apply streamlining transformation
     # #   Note: Does not work for attentions, as it assumes weight initializers
     # #   for matmul nodes
     # model = model.transform(Streamline())
-
-    # # Convert from QONNX graph to FINN nodes/operators
-    # #   Note: Somehow fails due to shape inference?
-    # model = model.transform(ConvertQONNXtoFINN())
 
     # Save the transformed graph
     model.save("attention.transformed.onnx")
