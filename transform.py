@@ -15,6 +15,10 @@ from qonnx.transformation.infer_shapes import InferShapes
 from qonnx.transformation.fold_constants import FoldConstants
 # Streamlining transformation: This is a collection of various transformations
 from finn.transformation.streamline import Streamline
+# Reorders operations
+from finn.transformation.streamline.reorder import MoveScalarMulPastMatMul
+# Absorbs operations / parameters into other operations
+from finn.transformation.streamline.absorb import AbsorbMulIntoMultiThreshold
 # Convert from QONNX model to FINN operators
 from finn.transformation.qonnx.convert_qonnx_to_finn import (
     FoldTransposeIntoQuantInit,
@@ -48,12 +52,18 @@ if __name__ == '__main__':
     # #   Note: This might be the reason for the shape inference error of the
     # #   ConvertQONNXtoFINN transformation below.
     # model = model.transform(FoldTransposeIntoQuantInit())
-    # Turn all quantization layers into MultiThresholds
-    model = model.transform(ConvertQuantActToMultiThreshold())
+
+    # # Turn all quantization layers into MultiThresholds
+    # model = model.transform(ConvertQuantActToMultiThreshold())
 
     # # Absorbs multiplications into thresholds (applies to the scale of the QK
     # # matmul output)
     # model = model.transform(AbsorbMulIntoMultiThreshold())
+
+    # # Moves scalar multiplications at the input of MatMul to the output
+    # #   Note: Requires ConvertQuantActToMultiThreshold to be executed first
+    # #   Note: Currently without effect on two-input MatMul (i.e. in attention)
+    # model = model.transform(MoveScalarMulPastMatMul())
 
     # # Convert from QONNX graph to FINN nodes/operators
     # #   Note: Somehow fails due to shape inference?
