@@ -53,26 +53,14 @@ if __name__ == '__main__':
     # #   ConvertQONNXtoFINN transformation below.
     # model = model.transform(FoldTransposeIntoQuantInit())
 
-    # # Turn all quantization layers into MultiThresholds
-    # model = model.transform(ConvertQuantActToMultiThreshold())
-
-    # # Absorbs multiplications into thresholds (applies to the scale of the QK
-    # # matmul output)
-    # model = model.transform(AbsorbMulIntoMultiThreshold())
-
-    # # Moves scalar multiplications at the input of MatMul to the output
-    # #   Note: Requires ConvertQuantActToMultiThreshold to be executed first
-    # #   Note: Currently without effect on two-input MatMul (i.e. in attention)
-    # model = model.transform(MoveScalarMulPastMatMul())
-
     # # Convert from QONNX graph to FINN nodes/operators
     # #   Note: Somehow fails due to shape inference?
     # model = model.transform(ConvertQONNXtoFINN())
 
-    # # Try to apply streamlining transformation
-    # #   Note: Does not work for attentions, as it assumes weight initializers
-    # #   for matmul nodes
-    # model = model.transform(Streamline())
+    # Turn all quantization layers into MultiThresholds
+    model = model.transform(ConvertQuantActToMultiThreshold())
+    # Try to apply streamlining transformation
+    model = model.transform(Streamline())
 
     # Save the transformed graph
     model.save("attention.transformed.onnx")
