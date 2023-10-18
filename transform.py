@@ -48,17 +48,10 @@ if __name__ == '__main__':
     # matmul output)
     model = model.transform(ConvertDivToMul())
 
-    # # Get rid of the transpose operation applied to the key matrix
-    # #   Note: This might be the reason for the shape inference error of the
-    # #   ConvertQONNXtoFINN transformation below.
-    # model = model.transform(FoldTransposeIntoQuantInit())
+    # Convert from QONNX graph to FINN nodes/operators
+    #   Note: Somehow fails due to shape inference?
+    model = model.transform(ConvertQONNXtoFINN())
 
-    # # Convert from QONNX graph to FINN nodes/operators
-    # #   Note: Somehow fails due to shape inference?
-    # model = model.transform(ConvertQONNXtoFINN())
-
-    # Turn all quantization layers into MultiThresholds
-    model = model.transform(ConvertQuantActToMultiThreshold())
     # Try to apply streamlining transformation
     model = model.transform(Streamline())
 
