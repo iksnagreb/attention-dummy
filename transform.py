@@ -49,7 +49,6 @@ if __name__ == '__main__':
     model = model.transform(ConvertDivToMul())
 
     # Convert from QONNX graph to FINN nodes/operators
-    #   Note: Somehow fails due to shape inference?
     model = model.transform(ConvertQONNXtoFINN())
 
     # Try to apply streamlining transformation
