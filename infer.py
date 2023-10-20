@@ -47,13 +47,12 @@ def is_end(node: NodeProto, model: ModelWrapper):  # noqa
     return node is not None and not model.find_direct_predecessors(node)
 
 
-# Check whether the node is either a matmul node or the end of the graph
-def is_matmul_or_end(node: NodeProto):
-    return is_matmul(node) or is_end(node, model)
-
-
 # Follow all input branches of a node until reaching a matmul
 def all_upstream_to_matmul(node: NodeProto, model: ModelWrapper):  # noqa
+    # Check whether the node is either a matmul node or the end of the graph
+    def is_matmul_or_end(node: NodeProto):
+        return is_matmul(node) or is_end(node, model)
+
     # Enumerate all inputs and collect everything upstream until finding the
     # next matmul operation
     return (model.find_upstream(i, is_matmul_or_end) for i in node.input)
@@ -289,7 +288,7 @@ class InferScaledDotProductAttention(Transformation):
                     # Datatype of value matrix elements
                     "VType": model.get_tensor_datatype(v),
                     # # Datatype of mask matrix elements
-                    # "MType": ,
+                    "MType": "UINT1",
                     # Datatype of attention weights elements
                     "AType": model.get_tensor_datatype(lhs[0].output[0]),
                     # Datatype of output elements
