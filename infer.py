@@ -117,6 +117,22 @@ class InferScaledDotProductAttention(Transformation):
                 if transpose is None or len(transpose.input) != 1:
                     # TODO: Near match. But what is this? just skip?
                     continue
+
+                # Skip this node if the transpose output forks into multiple
+                # branches
+                if model.is_fork_node(transpose):
+                    # TODO: Can the actually happen?
+                    # Issue a warning of near match of the supported attention
+                    # pattern
+                    # @formatter:off
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"Fork Transpose near {node.name}: {transpose.name}"
+                    )
+                    # @formatter:on
+                    # Skip transforming this instance
+                    continue
+
                 # The input shape of the transpose must match the transpose
                 # of the key matrix
                 # @formatter:off
