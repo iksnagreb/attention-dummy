@@ -1,4 +1,4 @@
 torch~=1.13.1
 brevitas~=0.9.1
-git+https://github.com/iksnagreb/qonnx.git@fix/transpose_into_quant
+git+https://github.com/fastmachinelearning/qonnx.git@cadd6b236e093f910c9e7cea623c81846cab3506
 git+https://github.com/iksnagreb/finn.git@feature/attention-streamline
