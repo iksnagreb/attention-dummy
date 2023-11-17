@@ -109,13 +109,31 @@ class InferScaledDotProductAttention(Transformation):
                 # The input shapes of the two matmul inputs must be compatible,
                 # i.e., they must have matching embedding dimension
                 if (qh, True, qe) != (kh, True, ke):
-                    # TODO: Near match. But what is this? just skip?
+                    # Issue a warning of near match of the supported attention
+                    # pattern
+                    # @formatter:off
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"Mismatch in head or embedding dim at {lhs[-1].name}: "
+                        f" {(qh, ql, qe)} vs. {(kh, kl, ke)}"
+                    )
+                    # @formatter:on
+                    # Skip transforming this instance
                     continue
                 # There must be a Transpose feeding the key input
                 transpose = model.find_producer(lhs[-1].input[1])
                 # The transform applies only to transpose with exactly one input
                 if transpose is None or len(transpose.input) != 1:
-                    # TODO: Near match. But what is this? just skip?
+                    # Issue a warning of near match of the supported attention
+                    # pattern
+                    # @formatter:off
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"Missing Transpose near {lhs[-1].name}: "
+                        f" {op_types([transpose])[0]}"
+                    )
+                    # @formatter:on
+                    # Skip transforming this instance
                     continue
 
                 # Skip this node if the transpose output forks into multiple
