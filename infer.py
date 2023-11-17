@@ -12,6 +12,8 @@ from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.core.datatype import BaseDataType
 # QONNX graph transformation base class
 from qonnx.transformation.base import Transformation
+# Gets items from protobuf by name
+from qonnx.util.basic import get_by_name
 
 
 # Tests whether a node is a join-node MatMul operation, i.e., a MatMul with two
@@ -50,24 +52,23 @@ def is_end(node: NodeProto, model: ModelWrapper):  # noqa
 # Follow all input branches of a node until reaching a matmul
 def all_upstream_to_matmul(node: NodeProto, model: ModelWrapper):  # noqa
     # Check whether the node is either a matmul node or the end of the graph
-    def is_matmul_or_end(node: NodeProto):
-        return is_matmul(node) or is_end(node, model)
+    def is_matmul_or_end(n: NodeProto):
+        return is_matmul(n) or is_end(n, model)
 
     # Enumerate all inputs and collect everything upstream until finding the
     # next matmul operation
-    return (model.find_upstream(i, is_matmul_or_end) for i in node.input)
+    return (model.find_upstream(i, is_matmul_or_end, True) for i in node.input)
 
 
 # Projects a list of ONNX graph nodes to the string representation of the
 # operator types
 def op_types(nodes: list[NodeProto]) -> list[str]:
-    return [node.op_type for node in nodes]
+    return [node.op_type if node is not None else "None" for node in nodes]
 
 
 # Convert the operator pattern corresponding to scaled dot-product attention to
 # the HLS custom operator node
 class InferScaledDotProductAttention(Transformation):
-
     # Applies the transform to a whole model graph
     def apply(self, model: ModelWrapper):  # noqa
         # Get the model graph out of the model wrapper object
@@ -120,7 +121,6 @@ class InferScaledDotProductAttention(Transformation):
                 # Skip this node if the transpose output forks into multiple
                 # branches
                 if model.is_fork_node(transpose):
-                    # TODO: Can the actually happen?
                     # Issue a warning of near match of the supported attention
                     # pattern
                     # @formatter:off
@@ -152,8 +152,15 @@ class InferScaledDotProductAttention(Transformation):
                 # Get the (optional) query-key matmul activation function
                 act_qk_matmul = lhs[-2] if is_matmul(lhs[-1]) else None
 
+                # There might be no activation function between qk matmul and
+                # softmax normalization
+                if is_mul(act_qk_matmul) or is_softmax(act_qk_matmul):
+                    # Remove the detected activation function node from the
+                    # pattern candidates
+                    act_qk_matmul = None
+
                 # Check whether the node is a supported type of activation
-                def is_supported_activation(n: NodeProto):
+                def is_supported_activation(n: NodeProto):  # noqa: Shadows name
                     # Currently, only none-type and MultiThreshold activations
                     # are supported
                     return n is None or n.op_type in {"MultiThreshold"}
@@ -195,7 +202,7 @@ class InferScaledDotProductAttention(Transformation):
                 dequant_softmax = lhs[2] if is_softmax(lhs[1]) else None
 
                 # Currently, only elementwise Mul is supported as de-quantizer
-                if is_matmul(dequant_softmax):
+                if not is_mul(dequant_softmax):
                     # Issue a warning of near match of the supported attention
                     # pattern
                     # @formatter:off
@@ -300,7 +307,10 @@ class InferScaledDotProductAttention(Transformation):
                     # Note: Can be extracted from the left hand side
                     # intermediate outputs
                     "OutQKMatMul": model.get_tensor_datatype(
-                        act_qk_matmul.output[0]
+                        # TODO: Clean this up...
+                        act_qk_matmul.output[
+                            0] if act_qk_matmul is not None else lhs[-1].output[
+                            0]
                     ),
                     # Activation function type following the first matmul
                     "ActQKMatMul": act_op_type_str(act_qk_matmul),
@@ -357,10 +367,181 @@ class InferScaledDotProductAttention(Transformation):
         return model, graph_modified
 
 
+# Tests whether a node is a Reshape operator
+def is_reshape(node: NodeProto):
+    return node is not None and node.op_type in {"Reshape"}
+
+
+# Tests whether a node is a Transpose operator
+def is_transpose(node: NodeProto):
+    return node is not None and node.op_type in {"Transpose"}
+
+
+# Infers reshaping of attention heads
+class InferMultiHeads(Transformation):
+    # Applies the transform to a whole model graph
+    def apply(self, model: ModelWrapper):  # noqa
+        # Get the model graph out of the model wrapper object
+        graph = model.graph
+        # Keep track of whether the graph has been modified
+        graph_modified = False
+        # Iterate all nodes in the graph keeping track of the index
+        for index, node in enumerate(graph.node):
+            # Head reshaping is triggered by detecting a reshape operation
+            if is_reshape(node):
+                # The reshape may not be a join or fork node
+                if model.is_join_node(node) or model.is_fork_node(node):
+                    # Softly skip this node
+                    continue
+                # Get the single successor node
+                transpose = model.find_direct_successors(node)[0]
+                # The consumer must be Transpose finalizing the reshaping
+                if not is_transpose(transpose):
+                    # Softly skip this node
+                    continue
+                # The transpose may not fork or join either
+                if (model.is_join_node(transpose)
+                        or model.is_fork_node(transpose)):
+                    # Softly skip this node
+                    continue
+
+                # Get the input and output tensor names to the pattern
+                inp = node.input[0]
+                mid = node.output[0]
+                end = transpose.output[0]
+
+                # The input shape determines the sequence length, batch size
+                # and embedding dimension
+                seq, bsz, dim = model.get_tensor_shape(inp)
+
+                # Currently only single-sample batches are supported
+                if bsz != 1:
+                    # Issue a warning of near match of the supported head
+                    # pattern
+                    # @formatter:off
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"Unsupported batch size near {node.name}: {bsz}"
+                    )
+                    # @formatter:on
+                    # Skip transforming this instance
+                    continue
+                # The intermediate shape must be the same as specified as the
+                # second input to the reshape operation
+                assert (model.get_tensor_shape(mid)  # noqa
+                        == model.get_initializer(node.input[1])).all()  # noqa
+                # Expected layout after reshape is "head last"
+                _, heads, _ = model.get_tensor_shape(mid)
+
+                # Get the (optional) permutation indices of the transpose in
+                # case it is a multi-axis transpose
+                perm = get_by_name(transpose.attribute, "perm")
+                # Convert permutation indices to list of integers if it is
+                # given
+                perm = perm.ints if perm is not None else None
+
+                # Transpose must either keep or flip the sequence and embedding
+                # dimensions
+                if perm not in [[1, 0, 2], [1, 2, 0]]:
+                    # Issue a warning of near match of the supported head
+                    # pattern
+                    # @formatter:off
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"Unsupported permutation near {transpose.name}: {perm}"
+                    )
+                    # @formatter:on
+                    # Skip transforming this instance
+                    continue
+
+                # Check whether the transpose only permutes to head first or
+                # additionally transposes sequence and embedding dimension as
+                # well
+                keep_transpose = (perm == [1, 2, 0])
+
+                # Start assuming there is no middle node, as the transpose is
+                # removed
+                maybe_mid = end
+
+                # Insert a new transpose node if the sequence and embedding
+                # dimensions are flipped
+                if keep_transpose:
+                    # Construct a new intermediate tensor using the current one
+                    # as template
+                    maybe_mid = mid
+                    # Construct a new Transpose with attributes inferred from
+                    # the detected graph patter
+                    new_transpose = oh.make_node(**{
+                        "op_type": "Transpose",
+                        # Named inputs extracted from the graph pattern
+                        "inputs": [maybe_mid],
+                        # Named outputs extracted from the graph pattern
+                        "outputs": [end],
+                        # Give node name derived from the operator type and the
+                        # name of the triggering node to be removed
+                        "name": f"MultiHeads_Transpose_{node.name}",
+                        # Permute the last two dimensions
+                        "perm": [0, 2, 1]
+                    })
+                    # Insert the new node into the graph
+                    graph.node.insert(index + 1, new_transpose)
+                    # Change the shape of the intermediate tensor to reflect
+                    # partial reshaping
+                    model.set_tensor_shape(maybe_mid,
+                                           (heads, seq, dim // heads))
+
+                # Fixed node attributes and extracted input/output/initializer
+                # tensor names
+                kwargs = {
+                    # Refer to this operator type by its name
+                    "op_type": "SliceMultiHeads",
+                    # Execution will try to look up the implementation in the
+                    # package referred to by the domain
+                    "domain": "finn.custom_op.fpgadataflow",
+                    # Execution backend: Required attribute inherited from
+                    # HLSCustomOp
+                    "backend": "fpgadataflow",
+                    # Named inputs extracted from the graph pattern
+                    "inputs": [inp],
+                    # Named outputs extracted from the graph pattern
+                    "outputs": [maybe_mid],
+                    # Give node name derived from the operator type and the name
+                    # of the triggering node to be removed
+                    "name": f"MultiHeads_{node.name}"
+                }
+
+                # Extract the node attributes of the multi heads operator from
+                # all constituent nodes
+                node_attrs = {
+                    "heads": heads
+                }
+
+                # Create a new custom node replacing the multi head reshape
+                heads = oh.make_node(**kwargs, **node_attrs)
+                # Insert the new node into the graph
+                graph.node.insert(index, heads)
+                # Collect all nodes comprising the original pattern
+                nodes = [node, transpose]
+                # Remove all nodes of the original pattern
+                for n in nodes:
+                    # Do not try to remove non-existing nodes
+                    if n is not None:
+                        graph.node.remove(n)
+                # The graph has been modified
+                graph_modified = True
+
+        # Return the transformed model and indicate whether the graph actually
+        # has been transformed
+        return model, graph_modified
+
+
 # Script entrypoint
 if __name__ == '__main__':
     # Load the model graph
     model = ModelWrapper("attention.transformed.onnx")
+
+    # # Try to infer reshaping of attention heads
+    # model = model.transform(InferMultiHeads())
 
     # Try to infer a ScaledDotProductAttention custom op
     model = model.transform(InferScaledDotProductAttention())
