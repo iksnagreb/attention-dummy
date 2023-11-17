@@ -4,3 +4,5 @@
 .venv/
 # Exported ONNX models
 *.onnx
+# Python cache
+__pycache__
