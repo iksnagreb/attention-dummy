@@ -395,6 +395,56 @@ def is_transpose(node: NodeProto):
     return node is not None and node.op_type in {"Transpose"}
 
 
+# Tests whether a node is a Reshape-Transpose operator chain
+def is_reshape_transpose(node: NodeProto, model: ModelWrapper):  # noqa
+    # Reshape-transpose pattern detection is triggered by detecting a reshape
+    # operation
+    if is_reshape(node):
+        # The reshape may not be a join or fork node
+        if model.is_join_node(node) or model.is_fork_node(node):
+            # Reject detection of the pattern
+            return False
+        # Get the single successor node
+        transpose = model.find_direct_successors(node)[0]
+        # The consumer must be Transpose finalizing the reshaping
+        if not is_transpose(transpose):
+            # Reject detection of the pattern
+            return False
+        # The transpose may not fork or join either
+        if model.is_join_node(transpose) or model.is_fork_node(transpose):
+            # Reject detection of the pattern
+            return False
+        # Accept detecting the pattern
+        return True
+    # Reject detection of the pattern
+    return False
+
+
+# Tests whether a node is a Transpose-Reshape operator chain
+def is_transpose_reshape(node: NodeProto, model: ModelWrapper):  # noqa
+    # Transpose-Reshape pattern detection is triggered by detecting a transpose
+    # operation
+    if is_transpose(node):
+        # The transpose may not be a join or fork node
+        if model.is_join_node(node) or model.is_fork_node(node):
+            # Reject detection of the pattern
+            return False
+        # Get the single successor node
+        reshape = model.find_direct_successors(node)[0]
+        # The consumer must be a reshape finalizing the transpose-reshape
+        if not is_reshape(reshape):
+            # Reject detection of the pattern
+            return False
+        # The reshape may not fork or join either
+        if model.is_join_node(reshape) or model.is_fork_node(reshape):
+            # Reject detection of the pattern
+            return False
+        # Accept detecting the pattern
+        return True
+    # Reject detection of the pattern
+    return False
+
+
 # Infers reshaping of attention heads
 class InferMultiHeads(Transformation):
     # Applies the transform to a whole model graph
@@ -405,45 +455,20 @@ class InferMultiHeads(Transformation):
         graph_modified = False
         # Iterate all nodes in the graph keeping track of the index
         for index, node in enumerate(graph.node):
-            # Head reshaping is triggered by detecting a reshape operation
-            if is_reshape(node):
-                # The reshape may not be a join or fork node
-                if model.is_join_node(node) or model.is_fork_node(node):
-                    # Softly skip this node
-                    continue
+            # Head-slicing reshaping is triggered by detecting a reshape
+            # operation followed by a transpose
+            if is_reshape_transpose(node, model):
                 # Get the single successor node
                 transpose = model.find_direct_successors(node)[0]
-                # The consumer must be Transpose finalizing the reshaping
-                if not is_transpose(transpose):
-                    # Softly skip this node
-                    continue
-                # The transpose may not fork or join either
-                if (model.is_join_node(transpose)
-                        or model.is_fork_node(transpose)):
-                    # Softly skip this node
-                    continue
 
                 # Get the input and output tensor names to the pattern
                 inp = node.input[0]
                 mid = node.output[0]
                 end = transpose.output[0]
 
-                # The input shape determines the sequence length, batch size
-                # and embedding dimension
-                seq, bsz, dim = model.get_tensor_shape(inp)
+                # The input shape determines the sequence length
+                seq, dim = model.get_tensor_shape(inp)
 
-                # Currently only single-sample batches are supported
-                if bsz != 1:
-                    # Issue a warning of near match of the supported head
-                    # pattern
-                    # @formatter:off
-                    warnings.warn(
-                        f"{self.__class__.__name__}: Skipping near match: "
-                        f"Unsupported batch size near {node.name}: {bsz}"
-                    )
-                    # @formatter:on
-                    # Skip transforming this instance
-                    continue
                 # The intermediate shape must be the same as specified as the
                 # second input to the reshape operation
                 assert (model.get_tensor_shape(mid)  # noqa
@@ -505,8 +530,9 @@ class InferMultiHeads(Transformation):
                     graph.node.insert(index + 1, new_transpose)
                     # Change the shape of the intermediate tensor to reflect
                     # partial reshaping
-                    model.set_tensor_shape(maybe_mid,
-                                           (heads, seq, dim // heads))
+                    model.set_tensor_shape(
+                        maybe_mid, (heads, seq, dim // heads)
+                    )
 
                 # Fixed node attributes and extracted input/output/initializer
                 # tensor names
@@ -525,21 +551,108 @@ class InferMultiHeads(Transformation):
                     "outputs": [maybe_mid],
                     # Give node name derived from the operator type and the name
                     # of the triggering node to be removed
-                    "name": f"MultiHeads_{node.name}"
-                }
-
-                # Extract the node attributes of the multi heads operator from
-                # all constituent nodes
-                node_attrs = {
+                    "name": f"SliceMultiHeads_{node.name}",
+                    # Number of attention heads inferred
                     "heads": heads
                 }
 
                 # Create a new custom node replacing the multi head reshape
-                heads = oh.make_node(**kwargs, **node_attrs)
+                heads = oh.make_node(**kwargs)
                 # Insert the new node into the graph
                 graph.node.insert(index, heads)
                 # Collect all nodes comprising the original pattern
                 nodes = [node, transpose]
+                # Remove all nodes of the original pattern
+                for n in nodes:
+                    # Do not try to remove non-existing nodes
+                    if n is not None:
+                        graph.node.remove(n)
+                # The graph has been modified
+                graph_modified = True
+
+            # Head-merging reshaping is triggered by detecting a transpose
+            # operation followed by a reshape
+            if is_transpose_reshape(node, model):
+                # Get the single successor node
+                reshape = model.find_direct_successors(node)[0]
+
+                # Get the input and output tensor names to the pattern
+                inp = node.input[0]
+                end = reshape.output[0]
+
+                # The input shape determines the heads, sequence length and
+                # embedding dimension
+                heads, seq, dim = model.get_tensor_shape(inp)
+
+                # Get the (optional) permutation indices of the transpose in
+                # case it is a multi-axis transpose
+                perm = get_by_name(node.attribute, "perm")
+                # Convert permutation indices to list of integers if it is given
+                perm = perm.ints if perm is not None else None
+
+                # Transpose must flip the heads and sequence dimensions
+                if perm not in [[1, 0, 2]]:
+                    # Issue a warning of near match of the supported head
+                    # pattern
+                    # @formatter:off
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"Unsupported permutation near {node.name}: {perm}"
+                    )
+                    # @formatter:on
+                    # Skip transforming this instance
+                    continue
+
+                # Shape of the final output of the operator pattern
+                out_shape = model.get_tensor_shape(end)
+
+                # The output of the reshape must be the same as specified as the
+                # second input to the reshape operation
+                assert (out_shape  # noqa
+                        == model.get_initializer(reshape.input[1])).all()
+
+                # The final output shape must match the expectation of
+                # reintegrating the heads back into the embeddings
+                if out_shape != [seq, heads * dim]:
+                    # Issue a warning to make the user aware of this mismatch
+                    # pattern
+                    # @formatter:off
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"Output shape mismatch near: {reshape.name}"
+                    )
+                    # @formatter:on
+                    # Skip transforming this instance
+                    continue
+
+                # Fixed node attributes and extracted input/output/initializer
+                # tensor names
+                kwargs = {
+                    # Refer to this operator type by its name
+                    "op_type": "MergeMultiHeads",
+                    # Execution will try to look up the implementation in the
+                    # package referred to by the domain
+                    "domain": "finn.custom_op.fpgadataflow",
+                    # Execution backend: Required attribute inherited from
+                    # HLSCustomOp
+                    "backend": "fpgadataflow",
+                    # Named inputs extracted from the graph pattern
+                    "inputs": [inp],
+                    # Named outputs extracted from the graph pattern
+                    "outputs": [end],
+                    # Give node name derived from the operator type and the name
+                    # of the triggering node to be removed
+                    "name": f"MergeMultiHeads_{node.name}",
+                    # Number of attention heads inferred
+                    "heads": heads
+                }
+
+                # Create a new custom node replacing the multi head reshape
+                heads = oh.make_node(**kwargs)
+                # Insert the new node into the graph
+                graph.node.insert(index, heads)
+                # Collect all nodes comprising the original pattern
+                nodes = [node, reshape]
                 # Remove all nodes of the original pattern
                 for n in nodes:
                     # Do not try to remove non-existing nodes
@@ -558,9 +671,8 @@ if __name__ == '__main__':
     # Load the model graph
     model = ModelWrapper("attention.transformed.onnx")
 
-    # # Try to infer reshaping of attention heads
-    # model = model.transform(InferMultiHeads())
-
+    # Try to infer reshaping of attention heads
+    model = model.transform(InferMultiHeads())
     # Try to infer a ScaledDotProductAttention custom op
     model = model.transform(InferScaledDotProductAttention())
 
