@@ -11,6 +11,7 @@ from qonnx.transformation.general import (
 # QONNX graph transformations for inferring datatypes and shapes
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.transformation.infer_shapes import InferShapes
+from qonnx.transformation.infer_data_layouts import InferDataLayouts
 # Precompute constant output nodes
 from qonnx.transformation.fold_constants import FoldConstants
 # Streamlining transformation: This is a collection of various transformations
@@ -143,6 +144,93 @@ class Squeeze(Transformation):
         return model, graph_modified
 
 
+# Removes identity reshape operations, i.e., Reshape where input shape is the
+# same as the target shape
+class RemoveIdentityReshape(Transformation):
+    # Applies the transform to a whole model graph
+    def apply(self, model: ModelWrapper):  # noqa
+        # Reuse node removal and rewiring from qonnx
+        from qonnx.transformation.remove import remove_node_and_rewire
+        # Get the model graph out of the model wrapper object
+        graph = model.graph
+        # Keep track of whether the graph has been modified
+        graph_modified = False
+        # Iterate all nodes in the graph keeping track of the index
+        for index, node in enumerate(graph.node):
+            # Applies to Reshape operation types
+            if node.op_type == "Reshape":
+                # Currently does not handle fork- or join-nodes
+                if model.is_fork_node(node) or model.is_join_node(node):
+                    # Softly skip this node
+                    continue
+                # Second input to the reshape operation is the target shape
+                shape = model.get_initializer(node.input[1])
+                # If the initializer is present, this is a constant shape
+                # reshape which can be removed if it does not reshape
+                if shape is not None:
+                    # Get the shape of the input to the reshape
+                    inp = model.get_tensor_shape(node.input[0])
+                    # If input and target shape are the same, this is an
+                    # identity operation
+                    if len(shape) == len(inp) and (shape == inp).all():  # noqa
+                        # Remove and rewire this node
+                        remove_node_and_rewire(model, node)
+                        # Track whether the graph has been modified, never
+                        # resets to False
+                        graph_modified = True
+        # Need to redo the shape inference after potentially removing nodes
+        model = model.transform(InferShapes())  # noqa: Shadows from outer scope
+        # Return the transformed model and indicate whether the graph actually
+        # has been transformed
+        return model, graph_modified
+
+
+# Removes identity transpose operations, i.e., Transpose where input order is
+# the same as the target permutation
+class RemoveIdentityTranspose(Transformation):
+    # Applies the transform to a whole model graph
+    def apply(self, model: ModelWrapper):  # noqa
+        # Reuse node removal and rewiring from qonnx
+        from qonnx.transformation.remove import remove_node_and_rewire
+        # Get the model graph out of the model wrapper object
+        graph = model.graph
+        # Keep track of whether the graph has been modified
+        graph_modified = False
+        # Iterate all nodes in the graph keeping track of the index
+        for index, node in enumerate(graph.node):
+            # Applies to Transpose operation types
+            if node.op_type == "Transpose":
+                # Currently does not handle fork- or join-nodes
+                if model.is_fork_node(node) or model.is_join_node(node):
+                    # Softly skip this node
+                    continue
+                # Get the (optional) permutation indices of the transpose in
+                # case it is a multi-axis transpose
+                perm = get_by_name(node.attribute, "perm")
+                # If the permutation indices are given, we need to remove all
+                # dimension of size 1 from these
+                if perm is not None:
+                    # Convert permutation indices to list of integers
+                    perm = perm.ints
+                    # Get the shape of the input tensor
+                    shape = model.get_tensor_shape(
+                        node.input[0], fix_missing_init_shape=True
+                    )
+                    # If the permutation indices cover the input shape in order,
+                    # this transpose does nothing
+                    if perm == [i for i in range(len(shape))]:
+                        # Remove and rewire this node
+                        remove_node_and_rewire(model, node)
+                        # Track whether the graph has been modified, never
+                        # resets to False
+                        graph_modified = True
+        # Need to redo the shape inference after potentially removing nodes
+        model = model.transform(InferShapes())  # noqa: Shadows from outer scope
+        # Return the transformed model and indicate whether the graph actually
+        # has been transformed
+        return model, graph_modified
+
+
 # Script entrypoint
 if __name__ == '__main__':
     # Load the model graph
@@ -163,6 +251,12 @@ if __name__ == '__main__':
 
     # Removes dimension of size 1, i.e., the batch dimension
     model = model.transform(Squeeze())
+    # Remove unnecessary shape and layout transformations
+    model = model.transform(RemoveIdentityReshape())
+    model = model.transform(RemoveIdentityTranspose())
+    # Insert tensor layout annotations for Quant tot MultiThreshold transform
+    # to determine the correct output channel dimension
+    model = model.transform(InferDataLayouts())
 
     # Convert from QONNX graph to FINN nodes/operators
     #   Note: In particular, this converts Quanto nodes to MultiThreshold
