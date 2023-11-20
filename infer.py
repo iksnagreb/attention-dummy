@@ -466,8 +466,15 @@ class InferMultiHeads(Transformation):
                 mid = node.output[0]
                 end = transpose.output[0]
 
+                # Get the shape of the input tensor for inferring the number of
+                # heads and correctly propagating shapes
+                shape = model.get_tensor_shape(inp)
+                # Determine the rank of the input tensor to support batched and
+                # non-batched inputs
+                rank = len(shape)
+
                 # The input shape determines the sequence length
-                seq, dim = model.get_tensor_shape(inp)
+                seq, _, dim = shape if (rank == 3) else (shape[0], 1,shape[1])
 
                 # The intermediate shape must be the same as specified as the
                 # second input to the reshape operation
@@ -613,7 +620,7 @@ class InferMultiHeads(Transformation):
 
                 # The final output shape must match the expectation of
                 # reintegrating the heads back into the embeddings
-                if out_shape != [seq, heads * dim]:
+                if out_shape not in [[seq, heads * dim], [seq, 1, heads * dim]]:
                     # Issue a warning to make the user aware of this mismatch
                     # pattern
                     # @formatter:off
