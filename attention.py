@@ -73,7 +73,7 @@ class DummyTransformer(torch.nn.Module):
                 # projections use a single, large linear projection to produce
                 # the actual query, key and value inputs. Otherwise, use
                 # separate linear projections on each individual input.
-                packed_in_proj=True,
+                packed_in_proj=False,
                 # Brevitas has this as an unsigned quantizer by default, but
                 # finn can only handle signed quantizer
                 attn_output_weights_quant=Int8ActPerTensorFloat,

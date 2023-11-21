@@ -474,7 +474,7 @@ class InferMultiHeads(Transformation):
                 rank = len(shape)
 
                 # The input shape determines the sequence length
-                seq, _, dim = shape if (rank == 3) else (shape[0], 1,shape[1])
+                seq, _, dim = shape if (rank == 3) else (shape[0], 1, shape[1])
 
                 # The intermediate shape must be the same as specified as the
                 # second input to the reshape operation
