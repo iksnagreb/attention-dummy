@@ -225,7 +225,7 @@ class RemoveIdentityTranspose(Transformation):
                         # resets to False
                         graph_modified = True
         # Need to redo the shape inference after potentially removing nodes
-        model = model.transform(InferShapes())  # noqa: Shadows from outer scope
+        # model = model.transform(InferShapes())  # noqa: Shadows model
         # Return the transformed model and indicate whether the graph actually
         # has been transformed
         return model, graph_modified
@@ -249,8 +249,8 @@ if __name__ == '__main__':
     model = model.transform(GiveUniqueParameterTensors())
     model = model.transform(FoldConstants())
 
-    # Removes dimension of size 1, i.e., the batch dimension
-    model = model.transform(Squeeze())
+    # # Removes dimension of size 1, i.e., the batch dimension
+    # model = model.transform(Squeeze())
     # Remove unnecessary shape and layout transformations
     model = model.transform(RemoveIdentityReshape())
     model = model.transform(RemoveIdentityTranspose())
