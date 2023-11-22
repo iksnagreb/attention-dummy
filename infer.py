@@ -2,16 +2,22 @@
 import warnings
 # Standard math functions
 import math
+# Need numpy for modifying the onnx graph tensors, which are numpy style arrays
+import numpy as np
 # Protobuf onnx graph node type
 from onnx import NodeProto  # noqa
 # Helper for creating ONNX nodes
 from onnx import helper as oh  # noqa
 # QONNX wrapper of ONNX model graphs
 from qonnx.core.modelwrapper import ModelWrapper
+# QONNX custom operations
+from qonnx.custom_op.base import CustomOp
 # QONNX datatypes
 from qonnx.core.datatype import BaseDataType
 # QONNX graph transformation base class
 from qonnx.transformation.base import Transformation
+# Transformation running onnx shape inference
+from qonnx.transformation.infer_shapes import InferShapes
 # Gets items from protobuf by name
 from qonnx.util.basic import get_by_name
 
@@ -548,7 +554,7 @@ class InferMultiHeads(Transformation):
                     "op_type": "SliceMultiHeads",
                     # Execution will try to look up the implementation in the
                     # package referred to by the domain
-                    "domain": "finn.custom_op.fpgadataflow",
+                    "domain": "qonnx.custom_op.general",
                     # Execution backend: Required attribute inherited from
                     # HLSCustomOp
                     "backend": "fpgadataflow",
@@ -639,7 +645,7 @@ class InferMultiHeads(Transformation):
                     "op_type": "MergeMultiHeads",
                     # Execution will try to look up the implementation in the
                     # package referred to by the domain
-                    "domain": "finn.custom_op.fpgadataflow",
+                    "domain": "qonnx.custom_op.general",
                     # Execution backend: Required attribute inherited from
                     # HLSCustomOp
                     "backend": "fpgadataflow",
@@ -651,7 +657,9 @@ class InferMultiHeads(Transformation):
                     # of the triggering node to be removed
                     "name": f"MergeMultiHeads_{node.name}",
                     # Number of attention heads inferred
-                    "heads": heads
+                    "heads": heads,
+                    # Remember, whether the output needs to be squeezed
+                    "squeezed": out_shape == [seq, heads * dim]
                 }
 
                 # Create a new custom node replacing the multi head reshape
@@ -667,7 +675,255 @@ class InferMultiHeads(Transformation):
                         graph.node.remove(n)
                 # The graph has been modified
                 graph_modified = True
+        # After rewiring need to re-do the shape annotations
+        model = model.transform(InferShapes())  # noqa: Shadows from outer scope
+        # Return the transformed model and indicate whether the graph actually
+        # has been transformed
+        return model, graph_modified
 
+
+# QONNX custom op corresponding to SliceMultiHeads to support shape inference
+# and node execution
+class SliceMultiHeads(CustomOp):
+    # Defines attributes which must be present on this node
+    def get_nodeattr_types(self):
+        return {
+            # Number of attention heads
+            "heads": ("i", True, 1)
+        }
+
+    # Makes an operation compatible with the output shape for shape inference
+    #   Note: Propagates shape forward, i.e., never asks for the shape of the
+    #   output, even if it seems easier.
+    def make_shape_compatible_op(self, model: ModelWrapper):  # noqa
+        # Get the node wrapped by this custom op
+        node = self.onnx_node
+        # Get the number of attention heads
+        heads = self.get_nodeattr("heads")
+        # Get the shape of the input tensor for inferring the number of
+        # heads and correctly propagating shapes
+        shape = model.get_tensor_shape(node.input[0])
+        # Determine the rank of the input tensor to support batched and
+        # non-batched inputs
+        rank = len(shape)
+        # The input shape determines the sequence length
+        seq, _, dim = shape if (rank == 3) else (shape[0], 1, shape[1])
+        # Create a new name for the temporary shape tensor
+        shape = model.make_new_valueinfo_name()
+        # Set the target shape of slices heads
+        model.set_initializer(shape, np.asarray([heads, seq, dim // heads]))
+        # Return a node simulating the shape effect of slicing into multi-heads
+        return oh.make_node("Reshape", [node.input[0], shape], [node.output[0]])
+
+    # Infers the datatype of the node output
+    def infer_node_datatype(self, model: ModelWrapper):  # noqa
+        # Get the node wrapped by this custom op
+        node = self.onnx_node
+        # Slicing simply propagates the type of the input to the output
+        model.set_tensor_datatype(
+            node.output[0], model.get_tensor_datatype(node.input[0])
+        )
+
+    # Executes multi-head slicing in python
+    def execute_node(self, context, graph):
+        # Get the node wrapped by this custom op
+        node = self.onnx_node
+        # Get the input out of the execution context
+        #   Note: Shape must be either seq x 1 x dim or seq x dim
+        inp = context[node.input[0]]
+        # Get the number of attention heads
+        heads = self.get_nodeattr("heads")
+        # Reshape to separate the heads out of the embedding dimensions, finally
+        # transpose to heads first layout
+        out = inp.reshape(inp.shape[0], heads, -1).transpose(1, 0, 2)
+        # Write the output into the execution context
+        context[node.output[0]] = out
+
+    # Verifies the node attributes, inputs and outputs
+    def verify_node(self):
+        # TODO: Implement
+        return []
+
+
+# QONNX custom op corresponding to MergeMultiHeads to support shape inference
+# and node execution
+class MergeMultiHeads(CustomOp):
+    # Defines attributes which must be present on this node
+    def get_nodeattr_types(self):
+        return {
+            # Number of attention heads
+            "heads": ("i", True, 1),
+            # Output needs to be squeezed
+            "squeezed": ("i", True, 0)
+        }
+
+    # Makes an operation compatible with the output shape for shape inference
+    #   Note: Propagates shape forward, i.e., never asks for the shape of the
+    #   output, even if it seems easier.
+    def make_shape_compatible_op(self, model: ModelWrapper):  # noqa
+        # Get the node wrapped by this custom op
+        node = self.onnx_node
+        # Get the number of attention heads
+        heads = self.get_nodeattr("heads")
+        # Squeeze single-element batch dimension from the output?
+        squeezed = self.get_nodeattr("squeezed")
+        # Get the shape of the input tensor for inferring the number of
+        # heads and correctly propagating shapes
+        h, seq, dim = model.get_tensor_shape(node.input[0])
+        # Attribute heads must match wht is annotated at the input
+        assert h == heads, \
+            f"Shape annotation and number of heads differ: {node.name}"
+        # Distribute the heads into the embedding dimension
+        dim = heads * dim
+        # Create a new name for the temporary shape tensor
+        shape = model.make_new_valueinfo_name()
+        # Set the target shape of slices heads
+        model.set_initializer(
+            shape, np.asarray([seq, dim] if squeezed else [seq, 1, dim])
+        )
+        # Return a node simulating the shape effect of merging multi-heads
+        return oh.make_node("Reshape", [node.input[0], shape], [node.output[0]])
+
+    # Infers the datatype of the node output
+    def infer_node_datatype(self, model: ModelWrapper):  # noqa
+        # Get the node wrapped by this custom op
+        node = self.onnx_node
+        # Slicing simply propagates the type of the input to the output
+        model.set_tensor_datatype(
+            node.output[0], model.get_tensor_datatype(node.input[0])
+        )
+
+    # Executes multi-head merging in python
+    def execute_node(self, context, graph):
+        # Get the node wrapped by this custom op
+        node = self.onnx_node
+        # Get the input out of the execution context
+        #   Note: Shape must be heads x seq x dim
+        inp = context[node.input[0]]
+        # Get the number of attention heads
+        heads = self.get_nodeattr("heads")
+        # Transpose back into sequence first layout then reintegrate the heads
+        # via reshape
+        out = inp.transpose(1, 0, 2).reshape(
+            inp.shape[1], 1, heads * inp.shape[-1]
+        )
+        # Optionally squeeze the output (remove batch dimension of size 1)
+        if self.get_nodeattr("squeezed"):
+            out = out.reshape(out.shape[0], out.shape[-1])
+        # Write the output into the execution context. Force output shape which
+        # might be squeezed
+        context[node.output[0]] = out
+
+    # Verifies the node attributes, inputs and outputs
+    def verify_node(self):
+        # TODO: Implement
+        return []
+
+
+# Transplant the new custom ops into the QONNX domain
+import qonnx.custom_op.general  # noqa
+
+qonnx.custom_op.general.custom_op["SliceMultiHeads"] = SliceMultiHeads
+qonnx.custom_op.general.custom_op["MergeMultiHeads"] = MergeMultiHeads
+
+
+# Move SliceMultiHeads operation past MultiThreshold operation
+class MoveSliceMultiHeadsPastMultiThreshold(Transformation):
+    # Applies the transform to a whole model graph
+    def apply(self, model: ModelWrapper):  # noqa
+        # Get the model graph out of the model wrapper object
+        graph = model.graph
+        # Keep track of whether the graph has been modified
+        graph_modified = False
+        # Iterate all nodes in the graph keeping track of the index
+        for index, node in enumerate(graph.node):
+            # Transformation applies to SliceMultiHeads operation (not Merge)
+            if node.op_type == "SliceMultiHeads":
+                # Slicing should not fork nor join
+                if model.is_fork_node(node) or model.is_join_node(node):
+                    # Issue a warning to make the user aware of this mismatch
+                    # pattern
+                    # @formatter:off
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"Slicing may not join or fork: {node.name}"
+                    )
+                    # @formatter:on
+                    # Skip transforming this instance
+                    continue
+                # Now we know there is only one consumer operation following the
+                # slice node
+                thresholds_node = model.find_direct_successors(node)[0]
+                # Successor must actually be a MultiThresholds for this
+                # transform to apply
+                if not thresholds_node.op_type == "MultiThreshold":
+                    # Skip transforming this instance, probably no need to warn
+                    continue
+
+                # Thresholds should not fork or join either
+                if (model.is_fork_node(thresholds_node)
+                        or model.is_join_node(thresholds_node)):
+                    # Issue a warning to make the user aware of this mismatch
+                    # pattern
+                    # @formatter:off
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"MultiThreshold may not join or fork:"
+                        f" {thresholds_node.name}"
+                    )
+                    # @formatter:on
+                    # Skip transforming this instance
+                    continue
+
+                # Get the thresholds tensor, which must be an initializer at
+                # the second input
+                thresholds = model.get_initializer(thresholds_node.input[1])
+                # This is indeed an error, no way to recover from this, so
+                # assertion is fine
+                assert thresholds is not None, \
+                    f"Missing threshold tensor for {thresholds_node.name}"
+
+                # The slice node should have an attribute specifying the number
+                # of heads
+                heads = get_by_name(node.attribute, "heads")
+                # Heads must be present, otherwise this is an errr
+                assert heads is not None, \
+                    f"Missing number of heads for {node.name}"
+                # Convert heads attribute proto to integer
+                heads = heads.i
+
+                # Repeat the thresholds for each head along the channel
+                # dimension
+                thresholds = np.concatenate(heads * [thresholds])
+                # Update the thresholds tensor to simply repurpose the existing
+                # node
+                model.set_initializer(thresholds_node.input[1], thresholds)
+
+                # Get names of all tensors involved in connecting the nodes
+                inp = node.input[0]
+                mid = node.output[0]
+                out = thresholds_node.output[0]
+
+                # The middle tensor is now produced by the multi-threshold,
+                # which does not change the shape. Propagate the shape of the
+                # input tensor
+                model.set_tensor_shape(mid, model.get_tensor_shape(inp))
+                # As the middle tensor is now produced by the multi-threshold,
+                # the datatype needs to be taken from the output tensor
+                model.set_tensor_datatype(mid, model.get_tensor_datatype(out))
+
+                # Rewire the nodes locally switching order. Reuses all the
+                # exising tensors.
+                thresholds_node.input[0] = inp
+                thresholds_node.output[0] = mid
+                node.input[0] = mid
+                node.output[0] = out
+
+                # Graph has been modified, required additional transformations
+                # to be run
+                graph_modified = True
+        # After rewiring need to re-do the shape annotations
+        model = model.transform(InferShapes())  # noqa: Shadows from outer scope
         # Return the transformed model and indicate whether the graph actually
         # has been transformed
         return model, graph_modified
@@ -680,7 +936,11 @@ if __name__ == '__main__':
 
     # Try to infer reshaping of attention heads
     model = model.transform(InferMultiHeads())
+    # Try to mode the mult-head slicing past the multi thresholds
+    model = model.transform(MoveSliceMultiHeadsPastMultiThreshold())
     # Try to infer a ScaledDotProductAttention custom op
+    #   Note: No further transformations can be run after this currently, as
+    #   using a finn custom-op cannot be looked up for shape inference.
     model = model.transform(InferScaledDotProductAttention())
 
     # Save the inferred graph
