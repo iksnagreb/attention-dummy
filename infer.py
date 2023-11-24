@@ -714,17 +714,17 @@ class SliceMultiHeads(CustomOp):
         heads = self.get_nodeattr("heads")
         # Shape inference differs depending on packed or split outputs
         packed = self.get_nodeattr("packed")
+        # Get the shape of the input tensor for inferring the number of
+        # heads and correctly propagating shapes
+        shape = model.get_tensor_shape(node.input[0])
+        # Determine the rank of the input tensor to support batched and
+        # non-batched inputs
+        rank = len(shape)
+        # The input shape determines the sequence length
+        seq, _, dim = shape if (rank == 3) else (shape[0], 1, shape[1])
         # Packed outputs a represented by a reshape operation producing one
         # tensor
         if packed:
-            # Get the shape of the input tensor for inferring the number of
-            # heads and correctly propagating shapes
-            shape = model.get_tensor_shape(node.input[0])
-            # Determine the rank of the input tensor to support batched and
-            # non-batched inputs
-            rank = len(shape)
-            # The input shape determines the sequence length
-            seq, _, dim = shape if (rank == 3) else (shape[0], 1, shape[1])
             # Create a new name for the temporary shape tensor
             shape = model.make_new_valueinfo_name()
             # Set the target shape of slices heads
@@ -734,10 +734,17 @@ class SliceMultiHeads(CustomOp):
             return oh.make_node(
                 "Reshape", [node.input[0], shape], [node.output[0]]
             )
+        # Prepare a dummy input to simulate reordering of batch/head dimension
+        # to the front
+        mock_input = model.make_new_valueinfo_name()
+        # Set the target shape of slices heads
+        model.set_tensor_shape(
+            mock_input, [1, seq, dim] if rank == 3 else [seq, dim]
+        )
         # If the outputs are not packed, the operation is represented as a split
         # operation producing number of heads outputs along the last axis
         return oh.make_node(
-            "Split", [node.input[0]], node.output, num_outputs=heads, axis=-1
+            "Split", [mock_input], node.output, num_outputs=heads, axis=-1
         )
 
     # Infers the datatype of the node output
@@ -873,8 +880,11 @@ class MergeMultiHeads(CustomOp):
             # Collect the list of inputs from the execution context and
             # concatenate along the last axis
             out = np.concatenate([context[i] for i in node.input], axis=-1)
+            # Reshape to simulate the batch dimensions if it is not present
+            out = out.reshape(out.shape[0], 1, out.shape[-1])
         # Optionally squeeze the output (remove batch dimension of size 1)
         if self.get_nodeattr("squeezed"):
+            # Squeeze batch dimension via reshape
             out = out.reshape(out.shape[0], out.shape[-1])
         # Write the output into the execution context. Force output shape
         # which might be squeezed
