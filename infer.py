@@ -358,7 +358,7 @@ class InferScaledDotProductAttention(Transformation):
 
                     # Softmax may be preceded by a de-quantizer scalar
                     # multiplication
-                    "DequantSoftmax": dequant_softmax.input[0]
+                    "DequantSoftmax": dequant_softmax.input[1]
                 }
 
                 # Converts QONNX datatypes to their name (as a string)
