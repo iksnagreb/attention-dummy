@@ -117,6 +117,12 @@ class Squeeze(Transformation):
                     remove_by_name(node.attribute, "perm")
                     # Insert new permutation attribute
                     node.attribute.append(oh.make_attribute("perm", new_perm))
+            # Need to the squeezed output mode of multi-head merging
+            if node.op_type == "MergeMultiHeads":
+                # Remove the squeezed attribute
+                remove_by_name(node.attribute, "squeezed")
+                # Set squeezed mode attribute
+                node.attribute.append(oh.make_attribute("squeezed", True))
         # Iterate all tensors in the graph keeping track of the index
         for index, name in enumerate(model.get_all_tensor_names()):
             # Query the shape of the tensor adding annotations for initializers
