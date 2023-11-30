@@ -389,6 +389,8 @@ class InferScaledDotProductAttention(Transformation):
                         graph.node.remove(n)
                 # The graph has been modified
                 graph_modified = True
+        # After rewiring need to re-do the shape annotations
+        model = model.transform(InferShapes())  # noqa: Shadows model
         # Return the transformed model and indicate whether the graph actually
         # has been transformed
         return model, graph_modified
@@ -1061,7 +1063,6 @@ if __name__ == '__main__':
     #   Note: No further transformations can be run after this currently, as
     #   using a finn custom-op cannot be looked up for shape inference.
     model = model.transform(InferScaledDotProductAttention())
-
     # Parallelize attention head in the onnx graph
     model = model.transform(UnrollMultiHeadAttention())
 
@@ -1072,7 +1073,6 @@ if __name__ == '__main__':
     # Remove dimensions of size 1 (single batch tensors)
     model = model.transform(Squeeze())
     model = model.transform(RemoveIdentityTranspose())
-
     # Clean up the names for debugging
     model = model.transform(GiveUniqueNodeNames())
     model = model.transform(GiveReadableTensorNames())
