@@ -12,8 +12,6 @@ from onnx import NodeProto  # noqa
 from onnx import helper as oh  # noqa
 # QONNX wrapper of ONNX model graphs
 from qonnx.core.modelwrapper import ModelWrapper
-# QONNX custom operations
-from qonnx.custom_op.base import CustomOp
 # QONNX datatypes
 from qonnx.core.datatype import BaseDataType
 # QONNX graph transformation base class
@@ -24,7 +22,7 @@ from qonnx.transformation.general import (
     GiveUniqueNodeNames, GiveReadableTensorNames
 )
 # Gets items from protobuf by name
-from qonnx.util.basic import get_by_name
+from qonnx.util.basic import get_by_name, remove_by_name
 
 
 # Tests whether a node is a join-node MatMul operation, i.e., a MatMul with two
@@ -556,10 +554,10 @@ class InferMultiHeads(Transformation):
                 # tensor names
                 kwargs = {
                     # Refer to this operator type by its name
-                    "op_type": "SliceMultiHeads",
+                    "op_type": "SplitMultiHeads",
                     # Execution will try to look up the implementation in the
                     # package referred to by the domain
-                    "domain": "qonnx.custom_op.general",
+                    "domain": "finn.custom_op.fpgadataflow",
                     # Execution backend: Required attribute inherited from
                     # HLSCustomOp
                     "backend": "fpgadataflow",
@@ -569,11 +567,18 @@ class InferMultiHeads(Transformation):
                     "outputs": [maybe_mid],
                     # Give node name derived from the operator type and the name
                     # of the triggering node to be removed
-                    "name": f"SliceMultiHeads_{node.name}",
+                    "name": f"SplitMultiHeads_{node.name}",
                     # Number of attention heads inferred
                     "heads": heads,
                     # Inferred multi-heads produce packed tensors
-                    "packed": True
+                    "packed": True,
+                    # Datatype of inputs and outputs
+                    "dtype": model.get_tensor_datatype(node.input[0]).name,
+                    # Number of input elements, i.e., embedding dimension
+                    "num_elems": dim,
+                    # Number of embeddings in the whole input sequence/feature
+                    # map
+                    "num_inputs": [seq, 1] if (rank == 3) else [seq]
                 }
 
                 # Create a new custom node replacing the multi head reshape
@@ -652,7 +657,7 @@ class InferMultiHeads(Transformation):
                     "op_type": "MergeMultiHeads",
                     # Execution will try to look up the implementation in the
                     # package referred to by the domain
-                    "domain": "qonnx.custom_op.general",
+                    "domain": "finn.custom_op.fpgadataflow",
                     # Execution backend: Required attribute inherited from
                     # HLSCustomOp
                     "backend": "fpgadataflow",
@@ -668,7 +673,14 @@ class InferMultiHeads(Transformation):
                     # Remember, whether the output needs to be squeezed
                     "squeezed": out_shape == [seq, heads * dim],
                     # Inferred multi-heads produce packed tensors
-                    "packed": True
+                    "packed": True,
+                    # Datatype of inputs and outputs
+                    "dtype": model.get_tensor_datatype(node.input[0]).name,
+                    # Number of input elements, i.e., embedding dimension
+                    "num_elems": dim,
+                    # Number of embeddings in the whole input sequence/feature
+                    # map
+                    "num_inputs": [heads, seq],
                 }
 
                 # Create a new custom node replacing the multi head reshape
@@ -691,220 +703,8 @@ class InferMultiHeads(Transformation):
         return model, graph_modified
 
 
-# QONNX custom op corresponding to SliceMultiHeads to support shape inference
-# and node execution
-class SliceMultiHeads(CustomOp):
-    # Defines attributes which must be present on this node
-    def get_nodeattr_types(self):
-        return {
-            # Number of attention heads
-            "heads": ("i", True, 1),
-            # Specifies whether the output is packed as a single output tensor
-            # or split as multiple output tensors
-            "packed": ("i", True, 1)
-        }
-
-    # Makes an operation compatible with the output shape for shape inference
-    #   Note: Propagates shape forward, i.e., never asks for the shape of the
-    #   output, even if it seems easier.
-    def make_shape_compatible_op(self, model: ModelWrapper):  # noqa
-        # Get the node wrapped by this custom op
-        node = self.onnx_node
-        # Get the number of attention heads
-        heads = self.get_nodeattr("heads")
-        # Shape inference differs depending on packed or split outputs
-        packed = self.get_nodeattr("packed")
-        # Get the shape of the input tensor for inferring the number of
-        # heads and correctly propagating shapes
-        shape = model.get_tensor_shape(node.input[0])
-        # Determine the rank of the input tensor to support batched and
-        # non-batched inputs
-        rank = len(shape)
-        # The input shape determines the sequence length
-        seq, _, dim = shape if (rank == 3) else (shape[0], 1, shape[1])
-        # Packed outputs a represented by a reshape operation producing one
-        # tensor
-        if packed:
-            # Create a new name for the temporary shape tensor
-            shape = model.make_new_valueinfo_name()
-            # Set the target shape of slices heads
-            model.set_initializer(shape, np.asarray([heads, seq, dim // heads]))
-            # Return a node simulating the shape effect of slicing into
-            # multi-heads
-            return oh.make_node(
-                "Reshape", [node.input[0], shape], [node.output[0]]
-            )
-        # Prepare a dummy input to simulate reordering of batch/head dimension
-        # to the front
-        mock_input = model.make_new_valueinfo_name()
-        # Set the target shape of slices heads
-        model.set_tensor_shape(
-            mock_input, [1, seq, dim] if rank == 3 else [seq, dim]
-        )
-        # If the outputs are not packed, the operation is represented as a split
-        # operation producing number of heads outputs along the last axis
-        return oh.make_node(
-            "Split", [mock_input], node.output, num_outputs=heads, axis=-1
-        )
-
-    # Infers the datatype of the node output
-    def infer_node_datatype(self, model: ModelWrapper):  # noqa
-        # Get the node wrapped by this custom op
-        node = self.onnx_node
-        # Propagate the type from the input to each output tensor
-        for o in node.output:
-            # Slicing simply propagates the type of the input to the output
-            model.set_tensor_datatype(
-                o, model.get_tensor_datatype(node.input[0])
-            )
-
-    # Executes multi-head slicing in python
-    def execute_node(self, context, graph):
-        # Get the node wrapped by this custom op
-        node = self.onnx_node
-        # Get the number of attention heads
-        heads = self.get_nodeattr("heads")
-        # Get the input out of the execution context
-        #   Note: Shape must be either seq x 1 x dim or seq x dim
-        inp = context[node.input[0]]
-        # Execution differs depending on packed or split outputs, i.e., produce
-        # one reshaped tensor vs. multiple split tensors
-        packed = self.get_nodeattr("packed")
-        # Packed execution boils down to a reshape of the single input to a
-        # single output
-        if packed:
-            # Reshape to separate the heads out of the embedding dimensions,
-            # finally transpose to heads first layout
-            out = inp.reshape(inp.shape[0], heads, -1).transpose(1, 0, 2)
-            # Write the output into the execution context
-            context[node.output[0]] = out
-        # Split is realized as the split operation of numpy
-        else:
-            # Produces multiple outputs as a list
-            splits = np.split(inp, indices_or_sections=heads, axis=-1)
-            # Correspondence between outputs and splits in order
-            for o, out in zip(node.output, splits):
-                # Write the output into the execution context
-                context[o] = out
-
-    # Verifies the node attributes, inputs and outputs
-    def verify_node(self):
-        # TODO: Implement
-        return []
-
-
-# QONNX custom op corresponding to MergeMultiHeads to support shape inference
-# and node execution
-class MergeMultiHeads(CustomOp):
-    # Defines attributes which must be present on this node
-    def get_nodeattr_types(self):
-        return {
-            # Number of attention heads
-            "heads": ("i", True, 1),
-            # Output needs to be squeezed
-            "squeezed": ("i", True, 0),
-            # Specifies whether the input is packed as a single input tensor
-            # or split as multiple input tensors
-            "packed": ("i", True, 1)
-        }
-
-    # Makes an operation compatible with the output shape for shape inference
-    #   Note: Propagates shape forward, i.e., never asks for the shape of the
-    #   output, even if it seems easier.
-    def make_shape_compatible_op(self, model: ModelWrapper):  # noqa
-        # Get the node wrapped by this custom op
-        node = self.onnx_node
-        # Get the number of attention heads
-        heads = self.get_nodeattr("heads")
-        # Squeeze single-element batch dimension from the output?
-        squeezed = self.get_nodeattr("squeezed")
-        # Shape inference differs depending on packed or split outputs
-        packed = self.get_nodeattr("packed")
-        # Packed inputs a represented by a reshape operation consuming one
-        # tensor
-        if packed:
-            # Get the shape of the input tensor for inferring the number of
-            # heads and correctly propagating shapes
-            h, seq, dim = model.get_tensor_shape(node.input[0])
-            # Attribute heads must match wht is annotated at the input
-            assert h == heads, \
-                f"Shape annotation and number of heads differ: {node.name}"
-            # Distribute the heads into the embedding dimension
-            dim = heads * dim
-            # Create a new name for the temporary shape tensor
-            shape = model.make_new_valueinfo_name()
-            # Set the target shape of slices heads
-            model.set_initializer(
-                shape, np.asarray([seq, dim] if squeezed else [seq, 1, dim])
-            )
-            # Return a node simulating the shape effect of merging multi-heads
-            return oh.make_node(
-                "Reshape", [node.input[0], shape], [node.output[0]]
-            )
-        # If the inputs are not packed, the operation is represented as a concat
-        # operation consuming number of heads inputs concatenating along the
-        # last axis
-        return oh.make_node("Concat", node.input, node.output, axis=-1)
-
-    # Infers the datatype of the node output
-    def infer_node_datatype(self, model: ModelWrapper):  # noqa
-        # Get the node wrapped by this custom op
-        node = self.onnx_node
-        # Merging simply propagates the type of the input to the output
-        model.set_tensor_datatype(
-            node.output[0], model.get_tensor_datatype(node.input[0])
-        )
-
-    # Executes multi-head merging in python
-    def execute_node(self, context, graph):
-        # Get the node wrapped by this custom op
-        node = self.onnx_node
-        # Get the input out of the execution context
-        #   Note: Shape must be heads x seq x dim
-        inp = context[node.input[0]]
-        # Get the number of attention heads
-        heads = self.get_nodeattr("heads")
-        # Execution differs depending on packed or split inputs, i.e., expects
-        # one tensor vs. multiple split tensors
-        packed = self.get_nodeattr("packed")
-        # Packed execution boils down to a reshape of the single input to a
-        # single output
-        if packed:
-            # Transpose back into sequence first layout then reintegrate the
-            # heads via reshape
-            out = inp.transpose(1, 0, 2).reshape(
-                inp.shape[1], 1, heads * inp.shape[-1]
-            )
-        # Split is realized as the concat operation of numpy
-        else:
-            # Collect the list of inputs from the execution context and
-            # concatenate along the last axis
-            out = np.concatenate([context[i] for i in node.input], axis=-1)
-            # Reshape to simulate the batch dimensions if it is not present
-            out = out.reshape(out.shape[0], 1, out.shape[-1])
-        # Optionally squeeze the output (remove batch dimension of size 1)
-        if self.get_nodeattr("squeezed"):
-            # Squeeze batch dimension via reshape
-            out = out.reshape(out.shape[0], out.shape[-1])
-        # Write the output into the execution context. Force output shape
-        # which might be squeezed
-        context[node.output[0]] = out
-
-    # Verifies the node attributes, inputs and outputs
-    def verify_node(self):
-        # TODO: Implement
-        return []
-
-
-# Transplant the new custom ops into the QONNX domain
-import qonnx.custom_op.general  # noqa
-
-qonnx.custom_op.general.custom_op["SliceMultiHeads"] = SliceMultiHeads
-qonnx.custom_op.general.custom_op["MergeMultiHeads"] = MergeMultiHeads
-
-
-# Move SliceMultiHeads operation past MultiThreshold operation
-class MoveSliceMultiHeadsPastMultiThreshold(Transformation):
+# Move SplitMultiHeads operation past MultiThreshold operation
+class MoveSplitMultiHeadsPastMultiThreshold(Transformation):
     # Applies the transform to a whole model graph
     def apply(self, model: ModelWrapper):  # noqa
         # Get the model graph out of the model wrapper object
@@ -913,8 +713,8 @@ class MoveSliceMultiHeadsPastMultiThreshold(Transformation):
         graph_modified = False
         # Iterate all nodes in the graph keeping track of the index
         for index, node in enumerate(graph.node):
-            # Transformation applies to SliceMultiHeads operation (not Merge)
-            if node.op_type == "SliceMultiHeads":
+            # Transformation applies to SplitMultiHeads operation (not Merge)
+            if node.op_type == "SplitMultiHeads":
                 # Slicing should not fork or join
                 if model.is_fork_node(node) or model.is_join_node(node):
                     # Issue a warning to make the user aware of this mismatch
@@ -987,6 +787,15 @@ class MoveSliceMultiHeadsPastMultiThreshold(Transformation):
                 # As the middle tensor is now produced by the multi-threshold,
                 # the datatype needs to be taken from the output tensor
                 model.set_tensor_datatype(mid, model.get_tensor_datatype(out))
+                # Remove the datatype attribute before setting the new
+                # datatype
+                remove_by_name(node.attribute, "dtype")
+                # Insert new datatype attribute
+                node.attribute.append(
+                    oh.make_attribute(
+                        "dtype", model.get_tensor_datatype(out).name
+                    )
+                )
 
                 # Rewire the nodes locally switching order. Reuses all the
                 # exising tensors.
@@ -1006,15 +815,15 @@ class MoveSliceMultiHeadsPastMultiThreshold(Transformation):
 
 
 # Detects multi-head attention pattern, i.e., scaled dot-product attention
-# between head slicing and merging
+# between head splitting and merging
 def is_multi_head_attention(node: NodeProto, model: ModelWrapper):  # noqa
     # The anchor node must be scaled dot product attention
     if node.op_type == "ScaledDotProductAttention":
         # Get the nodes feeding the attention operation
         predecessors = model.find_direct_predecessors(node)
-        # There must be exactly three predecessors of type head-slicing
-        # Note: the may be nothing in between slicing and the attention itself
-        if op_types(predecessors) == 3 * ["SliceMultiHeads"]:
+        # There must be exactly three predecessors of type head-splitting
+        # Note: the may be nothing in between splitting and the attention itself
+        if op_types(predecessors) == 3 * ["SplitMultiHeads"]:
             # Get the node fed by the attention operation
             successors = model.find_direct_successors(node)
             # There must be exactly onde successor of type head-merging
@@ -1047,15 +856,27 @@ class UnrollMultiHeadAttention(Transformation):
             # Apply transformation to node which match the multi-head attention
             # pattern
             if is_multi_head_attention(node, model):
-                # Get the slicing nodes fed by the attention operation
-                slice0, slice1, slice2 = model.find_direct_predecessors(node)
+                # Get the splitting nodes fed by the attention operation
+                split0, split1, split2 = model.find_direct_predecessors(node)
                 # Get the single merging node
                 merge0, = model.find_direct_successors(node)
-                # Get the number of heads produced by an arbitrary slicer
-                heads = get_by_name(slice0.attribute, "heads").i
+                # Get the number of heads produced by an arbitrary splitters
+                heads = get_by_name(split0.attribute, "heads").i
+                # Get the number of input elements to the heads splitting
+                # Note: Embedding dims might actually differ per input stream,
+                #   e.g., for cross-attention
+                dim0 = get_by_name(split0.attribute, "num_elems").i
+                dim1 = get_by_name(split1.attribute, "num_elems").i
+                dim2 = get_by_name(split2.attribute, "num_elems").i
+                # get the number of input features per splitting
+                # Note: Feature map sizes might actually differ per input
+                #   stream, e.g., for cross-attention
+                ins0 = get_by_name(split0.attribute, "num_inputs").ints
+                ins1 = get_by_name(split1.attribute, "num_inputs").ints
+                ins2 = get_by_name(split2.attribute, "num_inputs").ints
                 # Validate the number of heads matches between all slice and
                 # merge nodes
-                for n in [slice0, slice1, slice2, merge0]:
+                for n in [split0, split1, split2, merge0]:
                     # All heads must match, otherwise this is a failure from
                     # which we cannot recover
                     assert get_by_name(n.attribute, "heads").i == heads, \
@@ -1065,15 +886,16 @@ class UnrollMultiHeadAttention(Transformation):
 
                 # TODO: Clean up the following code
 
-                # Create replicas of the slicing nodes with expanded output list
-                slice0 = oh.make_node(
+                # Create replicas of the splitting nodes with expanded output
+                # list
+                split0 = oh.make_node(
                     # Refer to this operator type by its name
-                    op_type="SliceMultiHeads",
+                    op_type="SplitMultiHeads",
                     # Execution will try to look up the implementation in the
                     # package referred to by the domain
-                    domain="qonnx.custom_op.general",
+                    domain="finn.custom_op.fpgadataflow",
                     # Connect to the same input as the original
-                    inputs=slice0.input,
+                    inputs=split0.input,
                     # Generate new output tensor names for each head
                     outputs=[
                         model.make_new_valueinfo_name() for _ in range(heads)
@@ -1081,16 +903,23 @@ class UnrollMultiHeadAttention(Transformation):
                     # Attribute specifying the number of heads
                     heads=heads,
                     # Unrolled heads do not produce packed tensors
-                    packed=False
+                    packed=False,
+                    # Datatype of inputs and outputs
+                    dtype=get_by_name(split1.attribute, "dtype").s,
+                    # Number of input elements, i.e., embedding dimension
+                    num_elems=dim0,
+                    # Number of embeddings in the whole input sequence/feature
+                    # map
+                    num_inputs=[*ins0]
                 )
-                slice1 = oh.make_node(
+                split1 = oh.make_node(
                     # Refer to this operator type by its name
-                    op_type="SliceMultiHeads",
+                    op_type="SplitMultiHeads",
                     # Execution will try to look up the implementation in the
                     # package referred to by the domain
-                    domain="qonnx.custom_op.general",
+                    domain="finn.custom_op.fpgadataflow",
                     # Connect to the same input as the original
-                    inputs=slice1.input,
+                    inputs=split1.input,
                     # Generate new output tensor names for each head
                     outputs=[
                         model.make_new_valueinfo_name() for _ in range(heads)
@@ -1098,16 +927,23 @@ class UnrollMultiHeadAttention(Transformation):
                     # Attribute specifying the number of heads
                     heads=heads,
                     # Unrolled heads do not produce packed tensors
-                    packed=False
+                    packed=False,
+                    # Datatype of inputs and outputs
+                    dtype=get_by_name(split1.attribute, "dtype").s,
+                    # Number of input elements, i.e., embedding dimension
+                    num_elems=dim1,
+                    # Number of embeddings in the whole input sequence/feature
+                    # map
+                    num_inputs=[*ins1]
                 )
-                slice2 = oh.make_node(
+                split2 = oh.make_node(
                     # Refer to this operator type by its name
-                    op_type="SliceMultiHeads",
+                    op_type="SplitMultiHeads",
                     # Execution will try to look up the implementation in the
                     # package referred to by the domain
-                    domain="qonnx.custom_op.general",
+                    domain="finn.custom_op.fpgadataflow",
                     # Connect to the same input as the original
-                    inputs=slice2.input,
+                    inputs=split2.input,
                     # Generate new output tensor names for each head
                     outputs=[
                         model.make_new_valueinfo_name() for _ in range(heads)
@@ -1115,7 +951,14 @@ class UnrollMultiHeadAttention(Transformation):
                     # Attribute specifying the number of heads
                     heads=heads,
                     # Unrolled heads do not produce packed tensors
-                    packed=False
+                    packed=False,
+                    # Datatype of inputs and outputs
+                    dtype=get_by_name(split2.attribute, "dtype").s,
+                    # Number of input elements, i.e., embedding dimension
+                    num_elems=dim2,
+                    # Number of embeddings in the whole input sequence/feature
+                    # map
+                    num_inputs=[*ins2]
                 )
                 # Create replica of the merging node with expanded input list
                 merge0 = oh.make_node(
@@ -1123,7 +966,7 @@ class UnrollMultiHeadAttention(Transformation):
                     op_type="MergeMultiHeads",
                     # Execution will try to look up the implementation in the
                     # package referred to by the domain
-                    domain="qonnx.custom_op.general",
+                    domain="finn.custom_op.fpgadataflow",
                     # Generate new input tensor names for each head
                     inputs=[
                         model.make_new_valueinfo_name() for _ in range(heads)
@@ -1136,7 +979,17 @@ class UnrollMultiHeadAttention(Transformation):
                     # squeezed
                     squeezed=get_by_name(merge0.attribute, "squeezed").i,
                     # Unrolled heads do not produce packed tensors
-                    packed=False
+                    packed=False,
+                    # Datatype of inputs and outputs
+                    dtype=get_by_name(merge0.attribute, "dtype").s,
+                    # Number of input elements, i.e., embedding dimension
+                    num_elems=get_by_name(merge0.attribute, "num_elems").i,
+                    # Number of embeddings in the whole input sequence/feature
+                    # map
+                    # Note: Drop head-first head dimension of previously packed
+                    # input
+                    num_inputs=get_by_name(
+                        merge0.attribute, "num_inputs").ints[1:]
                 )
 
                 # Replicate the attention operator for each head
@@ -1146,22 +999,35 @@ class UnrollMultiHeadAttention(Transformation):
                     # Get the original shape of each input to remove the head
                     # number
                     _, seq, dim = model.get_tensor_shape(attention.input[0])
-                    model.set_tensor_shape(slice0.output[i], (1, seq, dim))
+                    model.set_tensor_shape(split0.output[i], (1, seq, dim))
                     _, seq, dim = model.get_tensor_shape(attention.input[1])
-                    model.set_tensor_shape(slice1.output[i], (1, seq, dim))
+                    model.set_tensor_shape(split1.output[i], (1, seq, dim))
                     _, seq, dim = model.get_tensor_shape(attention.input[2])
-                    model.set_tensor_shape(slice2.output[i], (1, seq, dim))
+                    model.set_tensor_shape(split2.output[i], (1, seq, dim))
+
+                    # Propagate the original datatype to each of the head inputs
+                    dtype = model.get_tensor_datatype(attention.input[0])
+                    model.set_tensor_datatype(split0.output[i], dtype)
+                    dtype = model.get_tensor_datatype(attention.input[1])
+                    model.set_tensor_datatype(split1.output[i], dtype)
+                    dtype = model.get_tensor_datatype(attention.input[2])
+                    model.set_tensor_datatype(split2.output[i], dtype)
 
                     # Connect the inputs of the replica to the output of each
                     # of the new slice operators
-                    attention.input[0] = slice0.output[i]
-                    attention.input[1] = slice1.output[i]
-                    attention.input[2] = slice2.output[i]
+                    attention.input[0] = split0.output[i]
+                    attention.input[1] = split1.output[i]
+                    attention.input[2] = split2.output[i]
 
                     # Get the original shape the output to remove the head
                     # number
                     _, seq, dim = model.get_tensor_shape(attention.output[0])
                     model.set_tensor_shape(merge0.input[i], (1, seq, dim))
+
+                    # Propagate the original datatype to each of the head
+                    # outputs
+                    dtype = model.get_tensor_datatype(attention.output[0])
+                    model.set_tensor_datatype(merge0.input[i], dtype)
 
                     # Connect the output of the attention replica to the input
                     # of the new merge operator
@@ -1169,14 +1035,14 @@ class UnrollMultiHeadAttention(Transformation):
                     # Insert the new node into the graph
                     graph.node.insert(index + i + 1, attention)
                 # Insert the new slice and merge nodes into the graph
-                for i, n in enumerate([slice0, slice1, slice2, merge0]):
+                for i, n in enumerate([split0, split1, split2, merge0]):
                     # Insert the new node into the graph at index offset by
                     # number of heads
                     graph.node.insert(index + heads + i + 1, n)
                 # Remove the original attention operator from the graph
                 graph.node.remove(node)
         # After rewiring need to re-do the shape annotations
-        # model = model.transform(InferShapes())  # noqa: Shadows model
+        model = model.transform(InferShapes())  # noqa: Shadows model
         # Return the transformed model and indicate whether the graph actually
         # has been transformed
         return model, graph_modified
@@ -1189,18 +1055,15 @@ if __name__ == '__main__':
 
     # Try to infer reshaping of attention heads
     model = model.transform(InferMultiHeads())
-    # Try to mode the mult-head slicing past the multi thresholds
-    model = model.transform(MoveSliceMultiHeadsPastMultiThreshold())
+    # Try to mode the mult-head splitting past the multi thresholds
+    model = model.transform(MoveSplitMultiHeadsPastMultiThreshold())
     # Try to infer a ScaledDotProductAttention custom op
     #   Note: No further transformations can be run after this currently, as
     #   using a finn custom-op cannot be looked up for shape inference.
     model = model.transform(InferScaledDotProductAttention())
+
     # Parallelize attention head in the onnx graph
     model = model.transform(UnrollMultiHeadAttention())
-
-    # Clean up the names for debugging
-    model = model.transform(GiveUniqueNodeNames())
-    model = model.transform(GiveReadableTensorNames())
 
     # Cleanup transformations
     from transformation.remove import RemoveIdentityTranspose
@@ -1209,6 +1072,10 @@ if __name__ == '__main__':
     # Remove dimensions of size 1 (single batch tensors)
     model = model.transform(Squeeze())
     model = model.transform(RemoveIdentityTranspose())
+
+    # Clean up the names for debugging
+    model = model.transform(GiveUniqueNodeNames())
+    model = model.transform(GiveReadableTensorNames())
 
     # Save the inferred graph
     model.save("attention.inferred.onnx")

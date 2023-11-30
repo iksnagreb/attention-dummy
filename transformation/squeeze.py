@@ -96,12 +96,32 @@ class Squeeze(Transformation):
                     remove_by_name(node.attribute, "perm")
                     # Insert new permutation attribute
                     node.attribute.append(oh.make_attribute("perm", new_perm))
-            # Need to the squeezed output mode of multi-head merging
+            # Need to squeeze the number of inputs to multi-head splitting
+            if node.op_type == "SplitMultiHeads":
+                # Get number of input feature maps to the merging operation
+                num_inputs = get_by_name(node.attribute, "num_inputs").ints
+                # Squeeze all dimensions of size 1
+                num_inputs = [size for size in num_inputs if size != 1]
+                # Update the attribute by removing and reinserting
+                remove_by_name(node.attribute, "num_inputs")
+                node.attribute.append(
+                    oh.make_attribute("num_inputs", num_inputs)
+                )
+            # Need to set the squeezed output mode of multi-head merging
             if node.op_type == "MergeMultiHeads":
                 # Remove the squeezed attribute
                 remove_by_name(node.attribute, "squeezed")
                 # Set squeezed mode attribute
                 node.attribute.append(oh.make_attribute("squeezed", True))
+                # Get number of input feature maps to the merging operation
+                num_inputs = get_by_name(node.attribute, "num_inputs").ints
+                # Squeeze all dimensions of size 1
+                num_inputs = [size for size in num_inputs if size != 1]
+                # Update the attribute by removing and reinserting
+                remove_by_name(node.attribute, "num_inputs")
+                node.attribute.append(
+                    oh.make_attribute("num_inputs", num_inputs)
+                )
         # Iterate all tensors in the graph keeping track of the index
         for index, name in enumerate(model.get_all_tensor_names()):
             # Query the shape of the tensor adding annotations for initializers
