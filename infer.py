@@ -1203,7 +1203,8 @@ if __name__ == '__main__':
     model = model.transform(GiveReadableTensorNames())
 
     # Cleanup transformations
-    from transform import Squeeze, RemoveIdentityTranspose
+    from transformation.remove import RemoveIdentityTranspose
+    from transformation.squeeze import Squeeze
 
     # Remove dimensions of size 1 (single batch tensors)
     model = model.transform(Squeeze())
