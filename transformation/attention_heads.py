@@ -462,6 +462,9 @@ class UnrollMultiHeadAttention(Transformation):
                     # Execution will try to look up the implementation in the
                     # package referred to by the domain
                     domain="finn.custom_op.fpgadataflow",
+                    # Execution backend: Required attribute inherited from
+                    # HLSCustomOp
+                    backend="fpgadataflow",
                     # Connect to the same input as the original
                     inputs=split0.input,
                     # Generate new output tensor names for each head
@@ -486,6 +489,9 @@ class UnrollMultiHeadAttention(Transformation):
                     # Execution will try to look up the implementation in the
                     # package referred to by the domain
                     domain="finn.custom_op.fpgadataflow",
+                    # Execution backend: Required attribute inherited from
+                    # HLSCustomOp
+                    backend="fpgadataflow",
                     # Connect to the same input as the original
                     inputs=split1.input,
                     # Generate new output tensor names for each head
@@ -510,6 +516,9 @@ class UnrollMultiHeadAttention(Transformation):
                     # Execution will try to look up the implementation in the
                     # package referred to by the domain
                     domain="finn.custom_op.fpgadataflow",
+                    # Execution backend: Required attribute inherited from
+                    # HLSCustomOp
+                    backend="fpgadataflow",
                     # Connect to the same input as the original
                     inputs=split2.input,
                     # Generate new output tensor names for each head
@@ -535,6 +544,9 @@ class UnrollMultiHeadAttention(Transformation):
                     # Execution will try to look up the implementation in the
                     # package referred to by the domain
                     domain="finn.custom_op.fpgadataflow",
+                    # Execution backend: Required attribute inherited from
+                    # HLSCustomOp
+                    backend="fpgadataflow",
                     # Generate new input tensor names for each head
                     inputs=[
                         model.make_new_valueinfo_name() for _ in range(heads)
