@@ -102,10 +102,10 @@ if __name__ == '__main__':
     torch.manual_seed(1)
     # Create a dummy attention module
     attention = DummyTransformer(
-        embed_dim=8, num_heads=4, num_layers=2, batch_first=True
+        embed_dim=8, num_heads=1, num_layers=1, batch_first=True
     )
     # Sample random input tensor in batch-first layout
-    x = torch.rand(1, 64, 8)
+    x = torch.rand(1, 10, 8)
     # Compute attention output
     o = attention(x)
     # Export the model graph to QONNX
