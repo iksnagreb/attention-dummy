@@ -120,10 +120,10 @@ cfg = build_cfg.DataflowBuildConfig(
     output_dir="attention-build",
     # Try to synthesize for 100 MHz clock, i.e., 10 ns
     synth_clk_period_ns=10.0,
-    # Build for the Alveo U280 card
-    board="U280",
+    # Build for the RFSoC 4x2 board
+    board="RFSoC2x2",
     # This is a Zynq flow
-    shell_flow_type=build_cfg.ShellFlowType.VITIS_ALVEO,
+    shell_flow_type=build_cfg.ShellFlowType.VIVADO_ZYNQ,
     # Generate and keep the intermediate outputs including reports
     generate_outputs=[
         build_cfg.DataflowOutputType.ESTIMATE_REPORTS,
