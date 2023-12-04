@@ -5,7 +5,24 @@ from brevitas.nn import QuantIdentity, QuantMultiheadAttention
 # Brevitas to QONNX model export
 from brevitas.export import export_qonnx
 # Brevitas quantizer
-from brevitas.quant import Int8ActPerTensorFloat
+from brevitas.quant import (
+    Int8ActPerTensorFloat, Int8WeightPerTensorFloat, Int8Bias
+)
+
+
+# Derive a 4-bit quantizer for weights based on the 8-bit variant
+class Int4WeightPerTensorFloat(Int8WeightPerTensorFloat):
+    bit_width = 4
+
+
+# Derive a 4-bit quantizer for the bias based on the 8-bit variant
+class Int4Bias(Int8Bias):
+    bit_width = 4
+
+
+# Derive a 4-bit quantizer for activations based on the 8-bit variant
+class Int4ActPerTensorFloat(Int8ActPerTensorFloat):
+    bit_width = 4
 
 
 # Scaled Dot-Product Attention operator with quantization layers placed in
@@ -76,11 +93,36 @@ class DummyTransformer(torch.nn.Module):
                 packed_in_proj=False,
                 # Brevitas has this as an unsigned quantizer by default, but
                 # finn can only handle signed quantizer
-                attn_output_weights_quant=Int8ActPerTensorFloat,
+                attn_output_weights_quant=Int4ActPerTensorFloat,
                 # Insert an additional quantizer in front ot the softmax. In our
                 # finn custom-op, this will be matched to the quantizer
                 # following the query and key matmul.
-                softmax_input_quant=Int8ActPerTensorFloat
+                softmax_input_quant=Int4ActPerTensorFloat,
+                # Quantize the input projections weights to 4 bits, brevitas
+                # defaults to 8 bits
+                in_proj_weight_quant=Int4WeightPerTensorFloat,
+                # Quantize the bias of the input projections to 4 bits as well
+                in_proj_bias_quant=Int4Bias,
+                # Use 4-bit inputs to the attention block
+                in_proj_input_quant=Int4ActPerTensorFloat,
+
+                # Quantize the output projections weights to 4 bits, brevitas
+                # defaults to 8 bits
+                out_proj_weight_quant=Int4WeightPerTensorFloat,
+                # Quantize the bias of the output projections to 4 bits as well
+                out_proj_bias_quant=Int4Bias,
+                # Use 4-bit inputs to the attention block
+                out_proj_input_quant=Int4ActPerTensorFloat,
+
+                # Quantizer the key after projections to 4-bit activations
+                k_transposed_quant=Int4ActPerTensorFloat,
+                # Quantize the queries after projections to 4-bit activations
+                q_scaled_quant=Int4ActPerTensorFloat,
+                # Quantize the values after projection to 4-bit activations
+                v_quant=Int4ActPerTensorFloat,
+
+                # Insert a 4-bit output quantizer to the attention block
+                out_proj_output_quant=Int4ActPerTensorFloat
             ),
         ])
 

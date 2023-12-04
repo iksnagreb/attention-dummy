@@ -4,3 +4,4 @@ numpy~=1.26.2
 git+https://github.com/Xilinx/brevitas.git@6695e8df7f6a2c7715b9ed69c4b78157376bb60b
 git+https://github.com/iksnagreb/qonnx.git@finn/pull/901
 git+https://github.com/iksnagreb/finn.git@merge/attention
+git+https://github.com/maltanar/pyverilator.git@766e457465f5c0dd315490d7b9cc5d74f9a76f4f
