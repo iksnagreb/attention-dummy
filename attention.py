@@ -1,3 +1,5 @@
+# For saving numpy array data
+import numpy as np
 # PyTorch base package: Math and Tensor Stuff
 import torch
 # Brevitas quantized variants of PyTorch layers
@@ -150,5 +152,8 @@ if __name__ == '__main__':
     x = torch.rand(1, 10, 8)
     # Compute attention output
     o = attention(x)
+    # Save the input and output data for verification purposes later
+    np.save("inp.npy", x.detach().numpy())
+    np.save("out.npy", o.detach().numpy())
     # Export the model graph to QONNX
     export_qonnx(attention, (x, ), "attention.onnx")

@@ -2,8 +2,6 @@
 import finn.builder.build_dataflow as build
 import finn.builder.build_dataflow_config as build_cfg
 from finn.builder.build_dataflow_config import AutoFIFOSizingMethod
-# QONNX wrapper of ONNX model graphs
-from qonnx.core.modelwrapper import ModelWrapper
 
 # QONNX wrapper of ONNX model graphs
 from qonnx.core.modelwrapper import ModelWrapper
@@ -25,8 +23,6 @@ from qonnx.transformation.fold_constants import FoldConstants
 from finn.transformation.streamline import Streamline
 # Reorder operations
 from finn.transformation.streamline.reorder import MoveLinearPastFork
-# Convert from QONNX model to FINN operators
-from finn.transformation.qonnx.convert_qonnx_to_finn import ConvertQONNXtoFINN
 
 # Remove some operations without real effect
 from transformation.remove import RemoveIdentityTranspose, RemoveIdentityReshape
@@ -46,7 +42,7 @@ from transformation.attention_heads import (
 # attention operators
 def step_tidy_up_pre_attention(model: ModelWrapper, _):
     # Add shape and datatype annotations throughout all the graph
-    model = model.transform(InferDataTypes())
+    model = model.transform(InferDataTypes())  # noqa Duplicate
     model = model.transform(InferShapes())
 
     # Cleanup the graph by removing redundant, unnecessary and constant nodes
@@ -132,6 +128,16 @@ cfg = build_cfg.DataflowBuildConfig(
         build_cfg.DataflowOutputType.BITFILE,
         build_cfg.DataflowOutputType.DEPLOYMENT_PACKAGE,
     ],
+    # Steps after which verification should be run
+    verify_steps=[
+        # Verify the model after generating C++ HLS and applying folding
+        build_cfg.VerificationStepType.FOLDED_HLS_CPPSIM
+        # No RTL Simulation support for now
+    ],
+    # File with test inputs for verification
+    verify_input_npy="inp.npy",
+    # File with expected test outputs for verification
+    verify_expected_output_npy="out.npy",
     # Save the intermediate model graphs
     save_intermediate_models=True,
     # Avoid RTL simulation for setting the FIFO sizes

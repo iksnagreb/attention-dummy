@@ -31,7 +31,7 @@ if __name__ == '__main__':
     model = ModelWrapper("attention.onnx")
 
     # Add shape and datatype annotations throughout all the graph
-    model = model.transform(InferDataTypes())
+    model = model.transform(InferDataTypes())  # noqa Duplicate
     model = model.transform(InferShapes())
 
     # Cleanup the graph by removing redundant, unnecessary and constant nodes
