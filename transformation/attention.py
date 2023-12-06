@@ -10,6 +10,8 @@ from onnx import helper as oh  # noqa
 from qonnx.core.modelwrapper import ModelWrapper
 # QONNX datatypes
 from qonnx.core.datatype import BaseDataType
+# Convert ONNX nodes to QONNX custom ops
+from qonnx.custom_op.registry import getCustomOp
 # QONNX graph transformation base class
 from qonnx.transformation.base import Transformation
 # Transformation running onnx shape inference
@@ -178,6 +180,12 @@ class InferScaledDotProductAttention(Transformation):
                 # the Softmax operator
                 dequant_softmax = lhs[2] if is_softmax(lhs[1]) else None
 
+                # If there is no dequant softmax yet, check alternative pattern
+                if dequant_softmax is None:
+                    # Alternatively, there might not be a quantizer following
+                    # the softmax
+                    dequant_softmax = lhs[1] if is_softmax(lhs[0]) else None
+
                 # Currently, only elementwise Mul is supported as de-quantizer
                 if not is_mul(dequant_softmax):
                     # Issue a warning of near match of the supported attention
@@ -191,6 +199,47 @@ class InferScaledDotProductAttention(Transformation):
                     # @formatter:on
                     # Skip transforming this instance
                     continue
+
+                # If there is a dequant scale factor, try to lift it from
+                # initializer to node attribute
+                if dequant_softmax is not None:
+                    # Get the initializer tensor
+                    scale = model.get_initializer(dequant_softmax.input[1])
+                    # This must be an initializer, the attention operator
+                    # currently does not handle any dynamically produced scale
+                    # factors
+                    if scale is None:
+                        # Issue a warning of near match of the supported
+                        # attention pattern
+                        # @formatter:off
+                        warnings.warn(
+                            f"{self.__class__.__name__}: Skipping near match: "
+                            f"Non-constant dequantizer near {node.name}: "
+                            f" {dequant_softmax.name}"
+                        )
+                        # @formatter:on
+                        # Skip transforming this instance
+                        continue
+                    # Currently, only scalar dequantizer scale factors are
+                    # supported
+                    if not all(x == 1 for x in scale.shape):
+                        # Issue a warning of near match of the supported
+                        # attention pattern
+                        # @formatter:off
+                        warnings.warn(
+                            f"{self.__class__.__name__}: Skipping near match: "
+                            f"Non-scalar dequantizer near {node.name}: "
+                            f" {dequant_softmax.name}"
+                        )
+                        # @formatter:on
+                        # Skip transforming this instance
+                        continue
+                    # Extract the single float value of the tensor
+                    dequant_softmax = float(scale.item())
+                # Insert default scale if the is no dequantizer present
+                else:
+                    # Default is identity scale
+                    dequant_softmax = 1.0
 
                 # The last node of the attention operator is either the detected
                 # matmul or the following, optional activation function
@@ -217,6 +266,23 @@ class InferScaledDotProductAttention(Transformation):
                 # matrix
                 assert model.get_tensor_shape(v)[:2] == [qh, kl]
 
+                # Output type of the first matmul
+                out_qk_matmul = lhs[-1].output[0]
+                # Extend the output type to include the optional thresholding
+                # activation
+                if act_qk_matmul is not None:
+                    # Single output tensor of the activation function
+                    out_qk_matmul = act_qk_matmul.output[0]
+
+                # Extract output bias of the thresholding activation functions
+                def out_bias(act):
+                    # Does only apply to thresholding activations
+                    if act is not None and act.op_type == "MultiThreshold":
+                        # Extract via interpreting the node a sQONNX custom op
+                        return getCustomOp(act).get_nodeattr("out_bias")
+                    # Default bias if no bias
+                    return 0.0
+
                 # Fixed node attributes and extracted input/output/initializer
                 # tensor names
                 kwargs = {
@@ -232,7 +298,7 @@ class InferScaledDotProductAttention(Transformation):
                     # Named inputs and activation thresholds extracted from the
                     # graph pattern
                     # TODO: Currently no masking support
-                    "inputs": [q, k, v, *thresholds, dequant_softmax.input[1]],
+                    "inputs": [q, k, v, *thresholds],
                     # Named model output extracted from the graph pattern
                     "outputs": last.output,
                     # TODO: Currently no masking support
@@ -283,14 +349,12 @@ class InferScaledDotProductAttention(Transformation):
                     # Datatype of output elements of the first matmul
                     # Note: Can be extracted from the left hand side
                     # intermediate outputs
-                    "OutQKMatMul": model.get_tensor_datatype(
-                        # TODO: Clean this up...
-                        act_qk_matmul.output[
-                            0] if act_qk_matmul is not None else lhs[-1].output[
-                            0]
-                    ),
+                    "OutQKMatMul": model.get_tensor_datatype(out_qk_matmul),
                     # Activation function type following the first matmul
                     "ActQKMatMul": act_op_type_str(act_qk_matmul),
+                    # Output bias to be applied to the thresholding activation
+                    # following the Query x Key multiplication
+                    "BiasActQKMatMul": out_bias(act_qk_matmul),
 
                     # Datatype of accumulator elements of the second matmul
                     "AccAVMatMul": model.get_tensor_datatype(node.output[0]),
@@ -299,14 +363,25 @@ class InferScaledDotProductAttention(Transformation):
                     "OutAVMatMul": model.get_tensor_datatype(last.output[0]),
                     # Activation function type following the second matmul
                     "ActAVMatMul": act_op_type_str(act_av_matmul),
-
-                    # Activation function type following the softmax
-                    # normalization of the attention weights
-                    "ActASoftmax": act_op_type_str(act_a_softmax),
+                    # Output bias to be applied to the thresholding activation
+                    # following the Attention x Value multiplication
+                    "BiasActAVMatMul": out_bias(act_av_matmul),
 
                     # Softmax may be preceded by a de-quantizer scalar
                     # multiplication
-                    "DequantSoftmax": dequant_softmax.input[1]
+                    "DequantSoftmax": dequant_softmax,
+                    # Datatype of softmax normalization before applying
+                    # activation or type cast. This is called Acc to stick to
+                    # the naming scheme of the MatMul operators before.
+                    #   Note: Currently this is ALWAYS floats
+                    "AccASoftmax": "FLOAT32",
+                    # Activation function type following the softmax
+                    # normalization of the attention weights
+                    "ActASoftmax": act_op_type_str(act_a_softmax),
+                    # Output bias to be applied to the thresholding activation
+                    # following the softmax normalization of the attention
+                    # weights
+                    "BiasActASoftmax": out_bias(act_a_softmax),
                 }
 
                 # Converts QONNX datatypes to their name (as a string)
