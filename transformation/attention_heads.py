@@ -14,6 +14,8 @@ from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation.base import Transformation
 # Transformation running onnx shape inference
 from qonnx.transformation.infer_shapes import InferShapes
+# QONNX graph transformations for renaming and cleaning up
+from qonnx.transformation.general import GiveUniqueParameterTensors
 # Gets items from protobuf by name
 from qonnx.util.basic import get_by_name, remove_by_name
 # Utility function for transforming ONNX graphs
@@ -623,6 +625,9 @@ class UnrollMultiHeadAttention(Transformation):
                 graph.node.remove(node)
         # After rewiring need to re-do the shape annotations
         model = model.transform(InferShapes())  # noqa: Shadows model
+        # By replicating the attention operator, multiple instances refer to the
+        # same initializer, replace these by a unique one for each head
+        model = model.transform(GiveUniqueParameterTensors())
         # Return the transformed model and indicate whether the graph actually
         # has been transformed
         return model, graph_modified
