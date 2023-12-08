@@ -148,6 +148,10 @@ if __name__ == '__main__':
     attention = DummyTransformer(
         embed_dim=8, num_heads=4, num_layers=1, batch_first=True
     )
+    # First pass of random data through the model to "calibrate" dummy quantizer
+    attention(torch.rand(1, 10, 8))
+    # Switch model to evaluation mode to have it fixed for export
+    attention = attention.eval()
     # Sample random input tensor in batch-first layout
     x = torch.rand(1, 10, 8)
     # Compute attention output

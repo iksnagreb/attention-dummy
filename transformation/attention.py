@@ -278,7 +278,7 @@ class InferScaledDotProductAttention(Transformation):
                 def out_bias(act):
                     # Does only apply to thresholding activations
                     if act is not None and act.op_type == "MultiThreshold":
-                        # Extract via interpreting the node a sQONNX custom op
+                        # Extract via interpreting the node as QONNX custom op
                         return getCustomOp(act).get_nodeattr("out_bias")
                     # Default bias if no bias
                     return 0.0
