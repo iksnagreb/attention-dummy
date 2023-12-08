@@ -67,7 +67,7 @@ class RemoveIdentityTranspose(Transformation):
             # Applies to Transpose operation types
             if node.op_type == "Transpose":
                 # Currently does not handle fork- or join-nodes
-                if model.is_fork_node(node) or model.is_join_node(node):
+                if model.is_join_node(node):
                     # Softly skip this node
                     continue
                 # Get the (optional) permutation indices of the transpose in
@@ -91,7 +91,7 @@ class RemoveIdentityTranspose(Transformation):
                         # resets to False
                         graph_modified = True
         # Need to redo the shape inference after potentially removing nodes
-        # model = model.transform(InferShapes())  # noqa: Shadows model
+        model = model.transform(InferShapes())  # noqa: Shadows model
         # Return the transformed model and indicate whether the graph actually
         # has been transformed
         return model, graph_modified
