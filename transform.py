@@ -64,6 +64,8 @@ if __name__ == '__main__':
     # Streamline again there should be more transformations enabled after moving
     # some nodes past forks
     model = model.transform(Streamline())
+    # For some reason another round of streamlining is sometimes necessary...
+    model = model.transform(Streamline())
 
     # Save the transformed graph
     model.save("attention.transformed.onnx")

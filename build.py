@@ -23,6 +23,10 @@ from qonnx.transformation.fold_constants import FoldConstants
 from finn.transformation.streamline import Streamline
 # Reorder operations
 from finn.transformation.streamline.reorder import MoveLinearPastFork
+# Create proper replicas of streams connecting HLS operators
+from finn.transformation.fpgadataflow.convert_to_hls_layers import (
+    InferDuplicateStreamsLayer
+)
 
 # Remove some operations without real effect
 from transformation.remove import RemoveIdentityTranspose, RemoveIdentityReshape
@@ -76,6 +80,8 @@ def step_streamline_attention(model: ModelWrapper, _):
     # Streamline again there should be more transformations enabled after moving
     # some nodes past forks
     model = model.transform(Streamline())
+    # For some reason another round of streamlining is sometimes necessary...
+    model = model.transform(Streamline())
     # Return the streamlined model
     return model
 
@@ -94,6 +100,12 @@ def step_convert_attention_to_hls(model: ModelWrapper, _):
     model = model.transform(UnrollMultiHeadAttention())
     # Return the model with attention and multi-heads mapped to hls operators
     return model
+
+
+# Function running the InferDuplicateStreamsLayer transformation
+def step_duplicate_streams(model: ModelWrapper, _):
+    # Properly duplicate the stream feeding the query, key and value projections
+    return model.transform(InferDuplicateStreamsLayer())
 
 
 # Post-processing tidy-up squeezing dimensions and identity operators left over
@@ -160,6 +172,9 @@ cfg = build_cfg.DataflowBuildConfig(
         step_tidy_up_post_attention,
         "step_tidy_up",
         "step_convert_to_hls",
+        # Properly duplicate the stream feeding the query, key and value
+        # projections
+        step_duplicate_streams,
         "step_create_dataflow_partition",
         "step_target_fps_parallelization",
         "step_apply_folding_config",
