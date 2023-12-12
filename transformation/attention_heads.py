@@ -623,6 +623,9 @@ class UnrollMultiHeadAttention(Transformation):
                     graph.node.insert(index + heads + i + 1, n)
                 # Remove the original attention operator from the graph
                 graph.node.remove(node)
+                # The graph has been modified, needs to be reported back to the
+                # caller
+                graph_modified = True
         # After rewiring need to re-do the shape annotations
         model = model.transform(InferShapes())  # noqa: Shadows model
         # By replicating the attention operator, multiple instances refer to the
