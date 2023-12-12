@@ -23,11 +23,6 @@ from qonnx.transformation.fold_constants import FoldConstants
 from finn.transformation.streamline import Streamline
 # Reorder operations
 from finn.transformation.streamline.reorder import MoveLinearPastFork
-# Create proper replicas of streams connecting HLS operators
-from finn.transformation.fpgadataflow.convert_to_hls_layers import (
-    InferDuplicateStreamsLayer
-)
-
 # Remove some operations without real effect
 from transformation.remove import RemoveIdentityTranspose, RemoveIdentityReshape
 # Cleanup transformations
@@ -40,6 +35,8 @@ from transformation.attention_heads import (
     MoveSplitMultiHeadsPastMultiThreshold,
     UnrollMultiHeadAttention
 )
+# Stream replication for outputs with multiple consumers
+from transformation.replicate_stream import InferReplicateStream
 
 
 # Function running transformations necessary to clean up models containing
@@ -102,10 +99,10 @@ def step_convert_attention_to_hls(model: ModelWrapper, _):
     return model
 
 
-# Function running the InferDuplicateStreamsLayer transformation
-def step_duplicate_streams(model: ModelWrapper, _):
-    # Properly duplicate the stream feeding the query, key and value projections
-    return model.transform(InferDuplicateStreamsLayer())
+# Function running the InferReplicateStream transformation
+def step_replicate_streams(model: ModelWrapper, _):
+    # Properly replicate the stream feeding the query, key and value projections
+    return model.transform(InferReplicateStream())
 
 
 # Post-processing tidy-up squeezing dimensions and identity operators left over
@@ -172,9 +169,9 @@ cfg = build_cfg.DataflowBuildConfig(
         step_tidy_up_post_attention,
         "step_tidy_up",
         "step_convert_to_hls",
-        # Properly duplicate the stream feeding the query, key and value
+        # Properly replicate the stream feeding the query, key and value
         # projections
-        step_duplicate_streams,
+        step_replicate_streams,
         "step_create_dataflow_partition",
         "step_target_fps_parallelization",
         "step_apply_folding_config",

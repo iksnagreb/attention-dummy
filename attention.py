@@ -123,8 +123,9 @@ class DummyTransformer(torch.nn.Module):
                 # Quantize the values after projection to 4-bit activations
                 v_quant=Int4ActPerTensorFloat,
 
-                # Insert a 4-bit output quantizer to the attention block
-                out_proj_output_quant=Int4ActPerTensorFloat
+                # No output quantization for now, as stacking multiple layers
+                # results in multiple multi-thresholds in succession
+                out_proj_output_quant=None
             ),
         ])
 
@@ -146,7 +147,7 @@ if __name__ == '__main__':
     torch.manual_seed(1)
     # Create a dummy attention module
     attention = DummyTransformer(
-        embed_dim=8, num_heads=4, num_layers=1, batch_first=True
+        embed_dim=8, num_heads=4, num_layers=2, batch_first=True
     )
     # First pass of random data through the model to "calibrate" dummy quantizer
     attention(torch.rand(1, 10, 8))
