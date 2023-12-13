@@ -58,7 +58,7 @@ def step_tidy_up_pre_attention(model: ModelWrapper, _):
     # Remove unnecessary shape and layout transformations
     model = model.transform(RemoveIdentityReshape())
     model = model.transform(RemoveIdentityTranspose())
-    # Insert tensor layout annotations for Quant tot MultiThreshold transform
+    # Insert tensor layout annotations for Quant to MultiThreshold transform
     # to determine the correct output channel dimension
     model = model.transform(InferDataLayouts())
     # Return the tidied up model
@@ -76,8 +76,6 @@ def step_streamline_attention(model: ModelWrapper, _):
     model = model.transform(MoveLinearPastFork())
     # Streamline again there should be more transformations enabled after moving
     # some nodes past forks
-    model = model.transform(Streamline())
-    # For some reason another round of streamlining is sometimes necessary...
     model = model.transform(Streamline())
     # Return the streamlined model
     return model
@@ -139,6 +137,14 @@ cfg = build_cfg.DataflowBuildConfig(
     ],
     # Steps after which verification should be run
     verify_steps=[
+        # Verify the model after converting to the FINN onnx dialect
+        build_cfg.VerificationStepType.QONNX_TO_FINN_PYTHON,
+        # Verify the model again using python mode after the default
+        # streamlining step
+        build_cfg.VerificationStepType.STREAMLINED_PYTHON,
+        # Verify the model again after tidy up transformations, right before
+        # converting to HLS
+        build_cfg.VerificationStepType.TIDY_UP_PYTHON,
         # Verify the model after generating C++ HLS and applying folding
         build_cfg.VerificationStepType.FOLDED_HLS_CPPSIM
         # No RTL Simulation support for now
@@ -165,6 +171,10 @@ cfg = build_cfg.DataflowBuildConfig(
         step_streamline_attention,
         # New conversion of the scaled dot-product attention pattern
         step_convert_attention_to_hls,
+        # For some reason another round of default streamlining is sometimes
+        # necessary...
+        # Note: This triggers the verification step
+        "step_streamline",
         # Another tidy-up step to remove unnecessary dimensions and operations
         step_tidy_up_post_attention,
         "step_tidy_up",
