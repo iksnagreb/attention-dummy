@@ -35,6 +35,12 @@ def is_mul(node: NodeProto):
     return node is not None and node.op_type in {"Mul"}
 
 
+# Tests whether a node is an element-wise Add
+def is_add(node: NodeProto):
+    # Node must exist and be of type Add
+    return node is not None and node.op_type in {"Add"}
+
+
 def is_end(node: NodeProto, model: ModelWrapper):  # noqa
     return node is not None and not model.find_direct_predecessors(node)
 

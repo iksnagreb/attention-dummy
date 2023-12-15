@@ -2,6 +2,8 @@
 import warnings
 # Standard math functions
 import math
+# Need numpy for modifying the onnx graph tensors, which are numpy style arrays
+import numpy as np
 # Protobuf onnx graph node type
 from onnx import NodeProto  # noqa
 # Helper for creating ONNX nodes
@@ -9,17 +11,20 @@ from onnx import helper as oh  # noqa
 # QONNX wrapper of ONNX model graphs
 from qonnx.core.modelwrapper import ModelWrapper
 # QONNX datatypes
-from qonnx.core.datatype import BaseDataType
+from qonnx.core.datatype import BaseDataType, DataType
 # Convert ONNX nodes to QONNX custom ops
 from qonnx.custom_op.registry import getCustomOp
 # QONNX graph transformation base class
 from qonnx.transformation.base import Transformation
 # Transformation running onnx shape inference
 from qonnx.transformation.infer_shapes import InferShapes
+# Transformations running qonnx datatype inference
+from qonnx.transformation.infer_datatypes import InferDataTypes
 # Utility function for transforming ONNX graphs
 from transformation.util import (
     op_types,
     is_mul,
+    is_add,
     is_matmul,
     is_join_matmul,
     is_softmax,
@@ -186,6 +191,111 @@ class InferScaledDotProductAttention(Transformation):
                     # the softmax
                     dequant_softmax = lhs[1] if is_softmax(lhs[0]) else None
 
+                # Assume no attention mask by default
+                mask, mask_mode, mask_dtype = [], 'none', DataType["BINARY"]
+                # If there is an elementwise add operation where we have
+                # expected the dequantizer, this might be an attention mask
+                if is_add(dequant_softmax):
+                    # Remember the candidate of the masking operation
+                    maybe_mask = dequant_softmax
+                    # If there is a mask candidate, the dequantizer, must be
+                    # right before
+                    dequant_softmax = model.find_direct_predecessors(
+                        dequant_softmax
+                    )
+                    # The attention mask may not have multiple producers
+                    if len(dequant_softmax) != 1:
+                        # Issue a warning of near match of the supported
+                        # attention pattern
+                        # @formatter:off
+                        warnings.warn(
+                            f"{self.__class__.__name__}: Skipping near match: "
+                            f"Unsupported de-quantizer near {maybe_mask.name}: "
+                            f" {op_types(dequant_softmax)}"
+                        )
+                        # @formatter:on
+                        # Skip transforming this instance
+                        continue
+                    # There is a single producer, which is probably the
+                    # dequantizer
+                    dequant_softmax, = dequant_softmax
+
+                    # The mask can be an initializer or provided as an input. If
+                    # it is given as an initializer, it can either be a causal
+                    # mask or some arbitrary pattern.
+
+                    # Check whether a tensor is a valid mask tensor
+                    def valid_mask(tensor):
+                        # Valid masks contain only two types of values, i.e.,
+                        # zero for not masked and -inf for masked slots
+                        return all(
+                            x in {0.0, -np.inf} for x in np.unique(tensor)
+                        )
+
+                    # Check whether a tensor describes a causal attention mask
+                    def is_causal(tensor):
+                        # Generate a causal mask of the same size
+                        causal = np.triu(-np.inf * np.ones_like(tensor), 1)
+                        # Compare candidate against the causal mask
+                        return (tensor == causal).all()  # noqa: 'all'
+
+                    # Try to get the initializer of the masking operation
+                    mask_tensor = model.get_initializer(maybe_mask.input[1])
+                    # Check whether this is constant mask known at export time
+                    if mask_tensor is not None:
+                        # We have a constant mask and need to validated that it
+                        # only contains valid values
+                        if not valid_mask(mask_tensor):
+                            # Issue a warning of near match of the supported
+                            # attention pattern
+                            # @formatter:off
+                            warnings.warn(
+                                f"{self.__class__.__name__}: Skipping near"
+                                f" match: Invalid values in mask near"
+                                f" {maybe_mask.name}: {np.unique(mask_tensor)}"
+                            )
+                            # @formatter:on
+                            # Skip transforming this instance
+                            continue
+                        # If this is a causal mask, just set the flag and drop
+                        # the input as the behavior can be generated on the fly
+                        if is_causal(mask_tensor):
+                            # Set the mode flag
+                            mask_mode = "causal"
+                        # This is a constant but non-causal mask which needs to
+                        # be kept as an input to the operator
+                        else:
+                            # Keep the input and set the mode flag
+                            mask, mask_mode = [maybe_mask.input[1]], "const"
+                            # Convert the mask to a binary mask getting rid of
+                            # explicitly storing the infinities
+                            mask_tensor = (mask_tensor == -np.inf)
+                            # Set the initializer to the binary mask still using
+                            # float as the container type
+                            model.set_initializer(
+                                *mask, mask_tensor.astype(np.float32)
+                            )
+                            # Set the quantization type annotation to binary
+                            model.set_tensor_datatype(*mask, DataType["BINARY"])
+                    # Dynamic input mask, cannot be validated beforehand
+                    else:
+                        # # Keep the input and set the corresponding mode flag
+                        # mask, mask_mode = [maybe_mask.input[1]], "input"
+                        # # Keep track of the datatype of the mask
+                        # mask_dtype = model.get_tensor_datatype(*mask)
+
+                        # Handling dynamic masks is more difficult and there is
+                        # no solution for now.
+                        # @formatter:off
+                        warnings.warn(
+                            f"{self.__class__.__name__}: Skipping near match: "
+                            f"Unsupported dynamic mask near {maybe_mask.name}: "
+                            f" {mask}"
+                        )
+                        # @formatter:on
+                        # Skip transforming this instance
+                        continue
+
                 # Currently, only elementwise Mul is supported as de-quantizer
                 if not is_mul(dequant_softmax):
                     # Issue a warning of near match of the supported attention
@@ -297,12 +407,12 @@ class InferScaledDotProductAttention(Transformation):
                     "backend": "fpgadataflow",
                     # Named inputs and activation thresholds extracted from the
                     # graph pattern
-                    # TODO: Currently no masking support
-                    "inputs": [q, k, v, *thresholds],
+                    "inputs": [q, k, v, *mask, *thresholds],
                     # Named model output extracted from the graph pattern
                     "outputs": last.output,
-                    # TODO: Currently no masking support
-                    "mask_mode": "none",
+                    # Set the attribute specifying how to handel the optional
+                    # attention mask
+                    "mask_mode": mask_mode,
                     # Give node name derived from the operator type and the name
                     # of the triggering node to be removed
                     "name": f"ScaledDotProductAttention_{node.name}"
@@ -338,7 +448,7 @@ class InferScaledDotProductAttention(Transformation):
                     # Datatype of value matrix elements
                     "VType": model.get_tensor_datatype(v),
                     # # Datatype of mask matrix elements
-                    "MType": "UINT1",
+                    "MType": mask_dtype.name,
                     # Datatype of attention weights elements
                     "AType": model.get_tensor_datatype(lhs[0].output[0]),
                     # Datatype of output elements
@@ -416,6 +526,9 @@ class InferScaledDotProductAttention(Transformation):
                 graph_modified = True
         # After rewiring need to re-do the shape annotations
         model = model.transform(InferShapes())  # noqa: Shadows model
+        # As attention mask datatype might have been changed, it might be
+        # necessary to re-do the datatype annotations
+        model = model.transform(InferDataTypes())
         # Return the transformed model and indicate whether the graph actually
         # has been transformed
         return model, graph_modified
