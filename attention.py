@@ -99,7 +99,7 @@ class DummyTransformer(torch.nn.Module):
                 # Insert an additional quantizer in front ot the softmax. In our
                 # finn custom-op, this will be matched to the quantizer
                 # following the query and key matmul.
-                softmax_input_quant=Int4ActPerTensorFloat,
+                softmax_input_quant=None,
                 # Quantize the input projections weights to 4 bits, brevitas
                 # defaults to 8 bits
                 in_proj_weight_quant=Int4WeightPerTensorFloat,
@@ -128,6 +128,8 @@ class DummyTransformer(torch.nn.Module):
                 out_proj_output_quant=None
             ),
         ])
+        # Causal attention mask
+        self.mask = torch.nn.Transformer.generate_square_subsequent_mask(10)
 
     # Model forward pass doing self attention, i.e, distributing a single input
     # to the query, key and value inputs of the attention operator
@@ -136,7 +138,8 @@ class DummyTransformer(torch.nn.Module):
         for block in self.attention_blocks:
             # Distribute input to all three attention inputs and use output as
             # next blocks input
-            x, _ = block(x, x, x)  # noqa: Shadows name 'x' from outer scope
+            x, _ = block(x, x, x, attn_mask=self.mask)  # noqa: Shadows
+            # name 'x' from outer scope
         # Return the output of the final block as the global output
         return x
 
@@ -161,4 +164,4 @@ if __name__ == '__main__':
     np.save("inp.npy", x.detach().numpy())
     np.save("out.npy", o.detach().numpy())
     # Export the model graph to QONNX
-    export_qonnx(attention, (x, ), "attention.onnx")
+    export_qonnx(attention, (x,), "attention.onnx")
