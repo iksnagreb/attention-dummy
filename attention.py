@@ -128,8 +128,12 @@ class DummyTransformer(torch.nn.Module):
                 out_proj_output_quant=None
             ),
         ])
-        # Causal attention mask
-        self.mask = torch.nn.Transformer.generate_square_subsequent_mask(10)
+        # # Causal attention mask
+        # self.mask = torch.nn.Transformer.generate_square_subsequent_mask(10)
+        # Random attention mask
+        self.mask = torch.where(  # noqa
+            torch.rand(10, 10) > 0.5, -torch.inf, 0.0  # noqa
+        )
 
     # Model forward pass doing self attention, i.e, distributing a single input
     # to the query, key and value inputs of the attention operator
