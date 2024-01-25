@@ -6,3 +6,7 @@
 *.onnx
 # Python cache
 __pycache__
+/inp.npy
+/out.npy
+/build
+

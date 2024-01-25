@@ -1,0 +1,28 @@
+# Model configuration section
+model:
+  # Number of attention heads
+  num_heads: 8
+  # Number of attention block "layers"
+  num_layers: 1
+  # Size of the input/output embedding dimension
+  emb_dim: 16
+  # Size of the MLP layer dimension
+  mlp_dim: 64
+  # Length of the input sequence, i.e., context size
+  seq_len: 64
+  # Number of bits to use for quantized representation
+  bits: 2
+  # Type of attention mask to use: 'none', 'causal' or 'const'
+  mask: 'const'
+# FINN build configuration
+build:
+  # Directory to store the build outputs
+  output_dir: "build"
+  # Target clock period, i.e., inverse of target frequency
+  synth_clk_period_ns: 10.0
+  # Board to target with the build
+  board: "RFSoC2x2"
+#  # Optional: Start the build from a specific step
+#  start_step: "step_tidy_up_pre_attention"
+  # Optional: Stop the build after a specific step
+  stop_step: "step_hls_ipgen"

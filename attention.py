@@ -1,85 +1,65 @@
+# YAML for loading experiment configurations
+import yaml
+
 # For saving numpy array data
 import numpy as np
 # PyTorch base package: Math and Tensor Stuff
 import torch
 # Brevitas quantized variants of PyTorch layers
-from brevitas.nn import QuantIdentity, QuantMultiheadAttention
+from brevitas.nn import QuantMultiheadAttention, QuantLinear, QuantReLU
 # Brevitas to QONNX model export
 from brevitas.export import export_qonnx
 # Brevitas quantizer
 from brevitas.quant import (
-    Int8ActPerTensorFloat, Int8WeightPerTensorFloat, Int8Bias
+    Int8ActPerTensorFloat,
+    Uint8ActPerTensorFloat,
+    Int8WeightPerTensorFloat,
+    Int8Bias,
 )
 
 
-# Derive a 4-bit quantizer for weights based on the 8-bit variant
-class Int4WeightPerTensorFloat(Int8WeightPerTensorFloat):
-    bit_width = 4
+# Generates a causal attention mask
+def causal_mask(length):
+    return torch.nn.Transformer.generate_square_subsequent_mask(length)
 
 
-# Derive a 4-bit quantizer for the bias based on the 8-bit variant
-class Int4Bias(Int8Bias):
-    bit_width = 4
-
-
-# Derive a 4-bit quantizer for activations based on the 8-bit variant
-class Int4ActPerTensorFloat(Int8ActPerTensorFloat):
-    bit_width = 4
-
-
-# Scaled Dot-Product Attention operator with quantization layers placed in
-# between the matmul and softmax operations
-#   Note: This does not contain any of the input or output projections
-class ScaledDotProductAttention(torch.nn.Module):
-    # Initializes the module parameters and state
-    def __init__(self):
-        # Initialize the PyTorch Module superclass
-        super().__init__()
-
-        # Input quantization
-        self.q_quant = QuantIdentity()
-        self.k_quant = QuantIdentity()
-        self.v_quant = QuantIdentity()
-
-        # TODO: Make type and bit-width of quantization configurable
-
-        # Quantizes the output of the query-key matmul
-        self.qk_quant = QuantIdentity()
-        # Quantizes the output of the softmax normalization
-        self.a_quant = QuantIdentity()
-        # Quantizes the output of the attention-value matmul
-        self.av_quant = QuantIdentity()
-
-    # Attention forward pass: Compute attention weights from queries and keys
-    # and applies them to the values
-    def forward(self, query, key, value):
-        # Quantize the model inputs
-        query = self.q_quant(query)
-        key = self.k_quant(key)
-        value = self.v_quant(value)
-        # Scale derived from embedding dimension size
-        scale = torch.sqrt(torch.as_tensor(query.shape[-1]))
-        # Multiply queries and keys and quantize the result
-        qk = self.qk_quant(torch.bmm(query, key.transpose(-2, -1)) / scale)
-        # Softmax-normalization of the attention weights
-        a = self.a_quant(torch.softmax(qk, dim=-1))
-        # Multiply attention weights and values and quantize the result
-        return self.av_quant(torch.bmm(a, value))
+# Generates a random attention mask
+def random_mask(length):
+    return torch.where(  # noqa
+        torch.rand(length, length) > 0.5, -torch.inf, 0.0  # noqa
+    )
 
 
 # Minimal example of a model which could be considered as a transformer
 class DummyTransformer(torch.nn.Module):
     # Initializes and registers the module parameters and state
-    def __init__(self, embed_dim, num_heads, num_layers=2, batch_first=True):
+    def __init__(
+            self, num_heads, num_layers, emb_dim, mlp_dim, seq_len, bits, mask
+    ):
         # Initialize the PyTorch Module superclass
         super().__init__()
-        # Stack multiple scaled dot product attention operators
+
+        # Derive a custom quantizer for weights based on the 8-bit variant
+        class WeightQuantizer(Int8WeightPerTensorFloat):
+            bit_width = bits
+
+        # Derive a custom quantizer for the bias based on the 8-bit variant
+        class BiasQuantizer(Int8Bias):
+            bit_width = bits
+
+        # Derive a custom quantizer for activations based on the 8-bit variant
+        class ActQuantizer(Int8ActPerTensorFloat):
+            bit_width = bits
+
+        # Derive a custom quantizer for activations based on the 8-bit variant
+        class UnsignedActQuantizer(Uint8ActPerTensorFloat):
+            bit_width = bits
+
+        # Quantized multi-head attention operator from brevitas
         self.attention_blocks = torch.nn.ModuleList(num_layers * [
-            # Each block is an instance of quantized scaled dot-product
-            # attention from brevitas
             QuantMultiheadAttention(
                 # Size of the embedding dimension (input and output)
-                embed_dim=embed_dim,
+                embed_dim=emb_dim,
                 # Number of attention heads
                 num_heads=num_heads,
                 # Enable a bias added to the input and output projections
@@ -87,7 +67,7 @@ class DummyTransformer(torch.nn.Module):
                 # Layout of the inputs:
                 #   Batch x Sequence x Embedding (batch-first, True)
                 #   Sequence x Batch x Embedding (batch-second, False)
-                batch_first=batch_first,
+                batch_first=True,
                 # If query, key and value input are the same, packed input
                 # projections use a single, large linear projection to produce
                 # the actual query, key and value inputs. Otherwise, use
@@ -95,77 +75,130 @@ class DummyTransformer(torch.nn.Module):
                 packed_in_proj=False,
                 # Brevitas has this as an unsigned quantizer by default, but
                 # finn can only handle signed quantizer
-                attn_output_weights_quant=Int4ActPerTensorFloat,
+                attn_output_weights_quant=ActQuantizer,
                 # Insert an additional quantizer in front ot the softmax. In our
                 # finn custom-op, this will be matched to the quantizer
                 # following the query and key matmul.
                 softmax_input_quant=None,
                 # Quantize the input projections weights to 4 bits, brevitas
                 # defaults to 8 bits
-                in_proj_weight_quant=Int4WeightPerTensorFloat,
+                in_proj_weight_quant=WeightQuantizer,
                 # Quantize the bias of the input projections to 4 bits as well
-                in_proj_bias_quant=Int4Bias,
+                in_proj_bias_quant=BiasQuantizer,
                 # Use 4-bit inputs to the attention block
-                in_proj_input_quant=Int4ActPerTensorFloat,
+                in_proj_input_quant=ActQuantizer,
 
                 # Quantize the output projections weights to 4 bits, brevitas
                 # defaults to 8 bits
-                out_proj_weight_quant=Int4WeightPerTensorFloat,
+                out_proj_weight_quant=WeightQuantizer,
                 # Quantize the bias of the output projections to 4 bits as well
-                out_proj_bias_quant=Int4Bias,
+                out_proj_bias_quant=BiasQuantizer,
                 # Use 4-bit inputs to the attention block
-                out_proj_input_quant=Int4ActPerTensorFloat,
+                out_proj_input_quant=ActQuantizer,
 
                 # Quantizer the key after projections to 4-bit activations
-                k_transposed_quant=Int4ActPerTensorFloat,
+                k_transposed_quant=ActQuantizer,
                 # Quantize the queries after projections to 4-bit activations
-                q_scaled_quant=Int4ActPerTensorFloat,
+                q_scaled_quant=ActQuantizer,
                 # Quantize the values after projection to 4-bit activations
-                v_quant=Int4ActPerTensorFloat,
+                v_quant=ActQuantizer,
 
                 # No output quantization for now, as stacking multiple layers
                 # results in multiple multi-thresholds in succession
                 out_proj_output_quant=None
-            ),
+            )
         ])
-        # # Causal attention mask
-        # self.mask = torch.nn.Transformer.generate_square_subsequent_mask(10)
-        # Random attention mask
-        self.mask = torch.where(  # noqa
-            torch.rand(10, 10) > 0.5, -torch.inf, 0.0  # noqa
-        )
+        # Point-wise mlp following the attention block made up of two quantized
+        # linear layers with ReLU non-linear activation in between and afterward
+        self.mlp_blocks = torch.nn.ModuleList(num_layers * [torch.nn.Sequential(
+            # First mlp layer projecting to the mlp dimension
+            QuantLinear(
+                # Inputs have the size of the attention embedding dimension
+                emb_dim,
+                # Project to the configured mlp dimension, which is typically
+                # larger than the embedding dimension
+                mlp_dim,
+                # Enable the learned bias vector
+                bias=True,
+                # Quantize weights to the same representation as all other
+                # layers
+                weight_quant=WeightQuantizer,
+                # Quantize the bias to the same representation as all other
+                # layers
+                bias_quant=BiasQuantizer,
+                # Quantize the input of the layer
+                input_quant=ActQuantizer
+            ),
+            # Use the ReLU activation function instead of the more commonly used
+            # GELU, as the latter is not mapped easily to hardware with FINN
+            #   Note: ReLU must be quantized to unsigned representation
+            QuantReLU(act_quant=UnsignedActQuantizer, input_quant=ActQuantizer),
+            # Second mlp layer projecting back to the embedding dimension
+            QuantLinear(
+                # Inputs have the configured mlp dimension, which is typically
+                # larger than the embedding dimension
+                mlp_dim,
+                # Project back to the size of the attention embedding dimension
+                emb_dim,
+                # Enable the learned bias vector
+                bias=True,
+                # Quantize weights to the same representation as all other
+                # layers
+                weight_quant=WeightQuantizer,
+                # Quantize the bias to the same representation as all other
+                # layers
+                bias_quant=BiasQuantizer,
+                # Quantize the input of the layer
+                input_quant=ActQuantizer
+            ),
+            # Use the ReLU activation function instead of the more commonly used
+            # GELU, as the latter is not mapped easily to hardware with FINN
+            #   Note: ReLU must be quantized to unsigned representation
+            QuantReLU(act_quant=UnsignedActQuantizer, input_quant=ActQuantizer)
+        )])
+
+        # Generate an attention mask depending on configuration
+        #   Note: Prepare all and select from dictionary by config option
+        self.mask = {
+            "none": None,
+            "causal": causal_mask(seq_len),
+            "const": random_mask(seq_len)
+        }[mask]
 
     # Model forward pass doing self attention, i.e, distributing a single input
     # to the query, key and value inputs of the attention operator
     def forward(self, x):  # noqa: Shadows name 'x' from outer scope
         # There are multiple blocks of attention
-        for block in self.attention_blocks:
+        for attention, mlp in zip(self.attention_blocks, self.mlp_blocks):
             # Distribute input to all three attention inputs and use output as
             # next blocks input
-            x, _ = block(x, x, x, attn_mask=self.mask)  # noqa: Shadows
-            # name 'x' from outer scope
+            x = mlp(attention(x, x, x, attn_mask=self.mask)[0])  # noqa:
+            # Shadows name 'x' from outer scope
         # Return the output of the final block as the global output
         return x
 
 
 # Script entrypoint
-if __name__ == '__main__':
-    # Seed the pytorch rng to always get the same model and dummy inputs
-    torch.manual_seed(1)
-    # Create a dummy attention module
-    attention = DummyTransformer(
-        embed_dim=8, num_heads=4, num_layers=2, batch_first=True
-    )
+if __name__ == "__main__":
+    # Open the configuration file
+    with open("params.yaml") as file:
+        # Load the configuration from yaml format
+        params = yaml.safe_load(file)["model"]
+    # Create a model instance from the configuration parameters
+    model = DummyTransformer(**params)
+    # Get the configured sequence length and embedding dimension to generate
+    # test inputs
+    seq, dim = params["seq_len"], params["emb_dim"]
     # First pass of random data through the model to "calibrate" dummy quantizer
-    attention(torch.rand(1, 10, 8))
+    model(torch.rand(1, seq, dim))
     # Switch model to evaluation mode to have it fixed for export
-    attention = attention.eval()
+    model = model.eval()
     # Sample random input tensor in batch-first layout
-    x = torch.rand(1, 10, 8)
+    x = torch.rand(1, seq, dim)
     # Compute attention output
-    o = attention(x)
+    o = model(x)
     # Save the input and output data for verification purposes later
     np.save("inp.npy", x.detach().numpy())
     np.save("out.npy", o.detach().numpy())
     # Export the model graph to QONNX
-    export_qonnx(attention, (x,), "attention.onnx")
+    export_qonnx(model, (x,), "attention.onnx")
