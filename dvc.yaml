@@ -43,7 +43,7 @@ stages:
     # the next stage
     outs:
       # Track everything from the build directory
-      - ${build.output_dir}
+      - ${build.output_dir}/
   # Stage collecting the synthesis metrics form the build stage
   metrics:
     # Command aggregating metrics from the build output products
@@ -53,7 +53,7 @@ stages:
       # The script executing the stage
       - metrics.py
       # The output products of the previous stage
-      - ${build.output_dir}
+      - ${build.output_dir}/
     # Parameters used by this stage
     params:
       # Track the build section from the parameters file

@@ -5,8 +5,8 @@ stages:
     deps:
     - path: attention.py
       hash: md5
-      md5: 63c87931a963d77c443d10b4b87f0521
-      size: 9801
+      md5: 74b2e2a320851cb226cff913f20a763f
+      size: 9729
     params:
       params.yaml:
         model:
@@ -20,22 +20,22 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: 7146bc95fbc93c01cab74f997129cecb
+      md5: 630d97d6157af9730e83211e4081bfce
       size: 42134
     - path: inp.npy
       hash: md5
-      md5: b36593a23c4f174f2eca325ed30d6789
+      md5: 3d0ac444ea29b09517aa04f113dd88c9
       size: 448
     - path: out.npy
       hash: md5
-      md5: 87eb53289629e16985b5ce37c3ebb1e0
+      md5: d0a5b00cae67c4337cfe193d81c64a0d
       size: 448
   build:
     cmd: $FINN/run-docker.sh build_custom $(pwd)
     deps:
     - path: attention.onnx
       hash: md5
-      md5: 7146bc95fbc93c01cab74f997129cecb
+      md5: 630d97d6157af9730e83211e4081bfce
       size: 42134
     - path: build.py
       hash: md5
@@ -43,11 +43,11 @@ stages:
       size: 4684
     - path: inp.npy
       hash: md5
-      md5: b36593a23c4f174f2eca325ed30d6789
+      md5: 3d0ac444ea29b09517aa04f113dd88c9
       size: 448
     - path: out.npy
       hash: md5
-      md5: 87eb53289629e16985b5ce37c3ebb1e0
+      md5: d0a5b00cae67c4337cfe193d81c64a0d
       size: 448
     params:
       params.yaml:
@@ -57,17 +57,17 @@ stages:
           board: RFSoC2x2
           stop_step: step_hls_ipgen
     outs:
-    - path: build
+    - path: build/
       hash: md5
-      md5: be0b310b381e00a16747aa9be449e9b6.dir
+      md5: af5e8dc714daaefd7f043705e9ff2751.dir
       size: 884365
       nfiles: 31
   metrics:
     cmd: python -m metrics
     deps:
-    - path: build
+    - path: build/
       hash: md5
-      md5: be0b310b381e00a16747aa9be449e9b6.dir
+      md5: af5e8dc714daaefd7f043705e9ff2751.dir
       size: 884365
       nfiles: 31
     - path: metrics.py
@@ -80,5 +80,5 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: b04be7d3f93a592133128723146c859e
+      md5: 6ac65b5ee7aa003ccc83fc5339354dc3
       size: 61
