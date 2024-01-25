@@ -6,7 +6,9 @@ import numpy as np
 # PyTorch base package: Math and Tensor Stuff
 import torch
 # Brevitas quantized variants of PyTorch layers
-from brevitas.nn import QuantMultiheadAttention, QuantLinear, QuantReLU
+from brevitas.nn import (
+    QuantIdentity, QuantMultiheadAttention, QuantLinear, QuantReLU
+)
 # Brevitas to QONNX model export
 from brevitas.export import export_qonnx
 # Brevitas quantizer
@@ -55,6 +57,10 @@ class DummyTransformer(torch.nn.Module):
         class UnsignedActQuantizer(Uint8ActPerTensorFloat):
             bit_width = bits
 
+        # Input quantizer preceding the first attention block
+        self.input_quant = QuantIdentity(
+            act_quant=ActQuantizer, return_quant_tensor=True
+        )
         # Quantized multi-head attention operator from brevitas
         self.attention_blocks = torch.nn.ModuleList(num_layers * [
             QuantMultiheadAttention(
@@ -63,7 +69,7 @@ class DummyTransformer(torch.nn.Module):
                 # Number of attention heads
                 num_heads=num_heads,
                 # Enable a bias added to the input and output projections
-                bias=True,
+                bias=False,
                 # Layout of the inputs:
                 #   Batch x Sequence x Embedding (batch-first, True)
                 #   Sequence x Batch x Embedding (batch-second, False)
@@ -86,7 +92,7 @@ class DummyTransformer(torch.nn.Module):
                 # Quantize the bias of the input projections to 4 bits as well
                 in_proj_bias_quant=BiasQuantizer,
                 # Use 4-bit inputs to the attention block
-                in_proj_input_quant=ActQuantizer,
+                in_proj_input_quant=None,
 
                 # Quantize the output projections weights to 4 bits, brevitas
                 # defaults to 8 bits
@@ -127,12 +133,17 @@ class DummyTransformer(torch.nn.Module):
                 # layers
                 bias_quant=BiasQuantizer,
                 # Quantize the input of the layer
-                input_quant=ActQuantizer
+                input_quant=ActQuantizer,
             ),
             # Use the ReLU activation function instead of the more commonly used
             # GELU, as the latter is not mapped easily to hardware with FINN
-            #   Note: ReLU must be quantized to unsigned representation
-            QuantReLU(act_quant=UnsignedActQuantizer, input_quant=ActQuantizer),
+            QuantReLU(
+                # Note: ReLU must be quantized to unsigned representation
+                act_quant=UnsignedActQuantizer,
+                # Return the quantization parameters so the next layer can
+                # quantize the bias
+                return_quant_tensor=True
+            ),
             # Second mlp layer projecting back to the embedding dimension
             QuantLinear(
                 # Inputs have the configured mlp dimension, which is typically
@@ -148,13 +159,16 @@ class DummyTransformer(torch.nn.Module):
                 # Quantize the bias to the same representation as all other
                 # layers
                 bias_quant=BiasQuantizer,
-                # Quantize the input of the layer
-                input_quant=ActQuantizer
+                # No input quantizer as the inputs are already quantized by the
+                # preceding ReLU layer
+                input_quant=None
             ),
             # Use the ReLU activation function instead of the more commonly used
             # GELU, as the latter is not mapped easily to hardware with FINN
-            #   Note: ReLU must be quantized to unsigned representation
-            QuantReLU(act_quant=UnsignedActQuantizer, input_quant=ActQuantizer)
+            QuantReLU(
+                # Note: ReLU must be quantized to unsigned representation
+                act_quant=UnsignedActQuantizer,
+            )
         )])
 
         # Generate an attention mask depending on configuration
@@ -168,6 +182,8 @@ class DummyTransformer(torch.nn.Module):
     # Model forward pass doing self attention, i.e, distributing a single input
     # to the query, key and value inputs of the attention operator
     def forward(self, x):  # noqa: Shadows name 'x' from outer scope
+        # Quantize the input preceding the first attention layer
+        x = self.input_quant(x)  # noqa: Shadows name 'x' from outer scope
         # There are multiple blocks of attention
         for attention, mlp in zip(self.attention_blocks, self.mlp_blocks):
             # Distribute input to all three attention inputs and use output as

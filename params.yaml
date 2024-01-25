@@ -1,17 +1,17 @@
 # Model configuration section
 model:
   # Number of attention heads
-  num_heads: 8
+  num_heads: 4
   # Number of attention block "layers"
-  num_layers: 1
+  num_layers: 2
   # Size of the input/output embedding dimension
-  emb_dim: 16
+  emb_dim: 8
   # Size of the MLP layer dimension
-  mlp_dim: 64
+  mlp_dim: 8
   # Length of the input sequence, i.e., context size
-  seq_len: 64
+  seq_len: 10
   # Number of bits to use for quantized representation
-  bits: 2
+  bits: 4
   # Type of attention mask to use: 'none', 'causal' or 'const'
   mask: 'const'
 # FINN build configuration
