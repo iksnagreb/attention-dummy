@@ -83,8 +83,6 @@ def step_convert_attention_to_hls(model: ModelWrapper, _):
     # Try to mode the mult-head splitting past the multi thresholds
     model = model.transform(MoveSplitMultiHeadsPastMultiThreshold())
     # Try to infer a ScaledDotProductAttention custom op
-    #   Note: No further transformations can be run after this currently, as
-    #   using a finn custom-op cannot be looked up for shape inference.
     model = model.transform(InferScaledDotProductAttention())
     # Parallelize attention head in the onnx graph
     model = model.transform(UnrollMultiHeadAttention())
