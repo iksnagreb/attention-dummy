@@ -36,7 +36,15 @@ def random_mask(length):
 class DummyTransformer(torch.nn.Module):
     # Initializes and registers the module parameters and state
     def __init__(
-            self, num_heads, num_layers, emb_dim, mlp_dim, seq_len, bits, mask
+            self,
+            num_heads,
+            num_layers,
+            bias,
+            emb_dim,
+            mlp_dim,
+            seq_len,
+            bits,
+            mask
     ):
         # Initialize the PyTorch Module superclass
         super().__init__()
@@ -71,7 +79,7 @@ class DummyTransformer(torch.nn.Module):
                 # Number of attention heads
                 num_heads=num_heads,
                 # Enable a bias added to the input and output projections
-                bias=False,
+                bias=bias,
                 # Layout of the inputs:
                 #   Batch x Sequence x Embedding (batch-first, True)
                 #   Sequence x Batch x Embedding (batch-second, False)
@@ -131,7 +139,7 @@ class DummyTransformer(torch.nn.Module):
                 # larger than the embedding dimension
                 mlp_dim,
                 # Enable the learned bias vector
-                bias=False,
+                bias=bias,
                 # Quantize weights to the same representation as all other
                 # layers
                 weight_quant=WeightQuantizer,
@@ -161,7 +169,7 @@ class DummyTransformer(torch.nn.Module):
                 # Project back to the size of the attention embedding dimension
                 emb_dim,
                 # Enable the learned bias vector
-                bias=False,
+                bias=bias,
                 # Quantize weights to the same representation as all other
                 # layers
                 weight_quant=WeightQuantizer,
