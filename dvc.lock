@@ -5,50 +5,50 @@ stages:
     deps:
     - path: attention.py
       hash: md5
-      md5: 74b2e2a320851cb226cff913f20a763f
-      size: 9729
+      md5: 7af3f85889f9df41d420fc3966151514
+      size: 11222
     params:
       params.yaml:
         model:
-          num_heads: 4
-          num_layers: 2
-          emb_dim: 8
-          mlp_dim: 8
-          seq_len: 10
+          num_heads: 8
+          num_layers: 1
+          emb_dim: 48
+          mlp_dim: 192
+          seq_len: 64
           bits: 4
-          mask: const
+          mask: causal
     outs:
     - path: attention.onnx
       hash: md5
-      md5: 630d97d6157af9730e83211e4081bfce
-      size: 42134
+      md5: 9d4a72ab0bd30d123f618cb3b60824f0
+      size: 146523
     - path: inp.npy
       hash: md5
-      md5: 3d0ac444ea29b09517aa04f113dd88c9
-      size: 448
+      md5: 1340167c447865ca7076b93d99d9320a
+      size: 12416
     - path: out.npy
       hash: md5
-      md5: d0a5b00cae67c4337cfe193d81c64a0d
-      size: 448
+      md5: 859d52dc55141b0bd47671f340f7c23a
+      size: 12416
   build:
     cmd: $FINN/run-docker.sh build_custom $(pwd)
     deps:
     - path: attention.onnx
       hash: md5
-      md5: 630d97d6157af9730e83211e4081bfce
-      size: 42134
+      md5: 9d4a72ab0bd30d123f618cb3b60824f0
+      size: 146523
     - path: build.py
       hash: md5
       md5: ca56be5a5f744841a7ebe94effbf8e73
       size: 4684
     - path: inp.npy
       hash: md5
-      md5: 3d0ac444ea29b09517aa04f113dd88c9
-      size: 448
+      md5: 1340167c447865ca7076b93d99d9320a
+      size: 12416
     - path: out.npy
       hash: md5
-      md5: d0a5b00cae67c4337cfe193d81c64a0d
-      size: 448
+      md5: 859d52dc55141b0bd47671f340f7c23a
+      size: 12416
     params:
       params.yaml:
         build:
@@ -59,17 +59,17 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: af5e8dc714daaefd7f043705e9ff2751.dir
-      size: 884365
-      nfiles: 31
+      md5: 48de91b111891760716a6154be628853.dir
+      size: 4672064
+      nfiles: 32
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: af5e8dc714daaefd7f043705e9ff2751.dir
-      size: 884365
-      nfiles: 31
+      md5: 48de91b111891760716a6154be628853.dir
+      size: 4672064
+      nfiles: 32
     - path: metrics.py
       hash: md5
       md5: c816cb36bd1f090576153c9d634f4889
@@ -80,5 +80,5 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 6ac65b5ee7aa003ccc83fc5339354dc3
-      size: 61
+      md5: 044af7f0d703e70eafb44a5db8bb6b5c
+      size: 62
