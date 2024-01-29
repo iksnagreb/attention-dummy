@@ -21,22 +21,22 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: e3136a3b0c7799809553b591ad877b8b
+      md5: 6d4dc4aa84789cfc696f816fd5cbca65
       size: 152943
     - path: inp.npy
       hash: md5
-      md5: 9fcc2328db5cdc8f867367e0b18e4930
+      md5: 9474a47ca5161a2154f9166b075e292e
       size: 12416
     - path: out.npy
       hash: md5
-      md5: 0c98f6733abd6938e5fff2f704f3887e
+      md5: 1914436738e8c32cd21113ef72b4cf24
       size: 12416
   build:
     cmd: $FINN/run-docker.sh build_custom $(pwd)
     deps:
     - path: attention.onnx
       hash: md5
-      md5: e3136a3b0c7799809553b591ad877b8b
+      md5: 6d4dc4aa84789cfc696f816fd5cbca65
       size: 152943
     - path: build.py
       hash: md5
@@ -44,11 +44,11 @@ stages:
       size: 4684
     - path: inp.npy
       hash: md5
-      md5: 9fcc2328db5cdc8f867367e0b18e4930
+      md5: 9474a47ca5161a2154f9166b075e292e
       size: 12416
     - path: out.npy
       hash: md5
-      md5: 0c98f6733abd6938e5fff2f704f3887e
+      md5: 1914436738e8c32cd21113ef72b4cf24
       size: 12416
     params:
       params.yaml:
@@ -56,30 +56,32 @@ stages:
           output_dir: build
           synth_clk_period_ns: 10.0
           board: RFSoC2x2
-          stop_step: step_hls_ipgen
     outs:
     - path: build/
       hash: md5
-      md5: df7c54ea2e0f8c33cbfd56209f4fcfd5.dir
-      size: 4680765
-      nfiles: 32
+      md5: c53bb30be2bb97d6b534a5221a374908.dir
+      size: 102561770
+      nfiles: 2056
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: df7c54ea2e0f8c33cbfd56209f4fcfd5.dir
-      size: 4680765
-      nfiles: 32
+      md5: c53bb30be2bb97d6b534a5221a374908.dir
+      size: 102561770
+      nfiles: 2056
     - path: metrics.py
       hash: md5
-      md5: c816cb36bd1f090576153c9d634f4889
-      size: 662
+      md5: 027dcb70a77c34f84948bc3d5ee2107f
+      size: 932
     params:
       params.yaml:
         build.output_dir: build
+        metrics:
+          report: build/report/post_synth_resources.json
+          filter: (top)
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 3120c1346389bca3709fede2b47a89dc
-      size: 62
+      md5: c50ce0ec4225b4ae3cb321dfd520a16f
+      size: 68

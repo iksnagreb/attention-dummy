@@ -58,6 +58,8 @@ stages:
     params:
       # Track the build section from the parameters file
       - build.output_dir
+      # Track the metrics section from the parameters file
+      - metrics
     # Produces metrics as output
     metrics:
       # Track all metrics in this file
