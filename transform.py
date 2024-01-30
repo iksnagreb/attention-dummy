@@ -17,7 +17,11 @@ from qonnx.transformation.fold_constants import FoldConstants
 # Streamlining transformation: This is a collection of various transformations
 from finn.transformation.streamline import Streamline
 # Reorder operations
-from finn.transformation.streamline.reorder import MoveLinearPastFork
+from finn.transformation.streamline.reorder import (
+    MoveLinearPastFork,
+    MoveLinearPastEltwiseAdd,
+    MoveScalarLinearPastInvariants
+)
 # Convert from QONNX model to FINN operators
 from finn.transformation.qonnx.convert_qonnx_to_finn import ConvertQONNXtoFINN
 
@@ -65,6 +69,18 @@ if __name__ == '__main__':
     # some nodes past forks
     model = model.transform(Streamline())
     # For some reason another round of streamlining is sometimes necessary...
+    model = model.transform(Streamline())
+    # For some reason another round of streamlining is sometimes necessary...
+    model = model.transform(Streamline())
+
+    # Streamline the residual connections by moving scale factors past
+    # elementwise add nodes
+    model = model.transform(MoveLinearPastEltwiseAdd())
+    model = model.transform(MoveLinearPastFork())
+    model = model.transform(MoveScalarLinearPastInvariants())
+    # Do the normal streamlining flow once again
+    model = model.transform(Streamline())
+    # And again to get the last floating-point Mul absorbed into thresholds
     model = model.transform(Streamline())
 
     # Save the transformed graph

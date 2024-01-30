@@ -17,7 +17,15 @@ from qonnx.transformation.fold_constants import FoldConstants
 # Streamlining transformation: This is a collection of various transformations
 from finn.transformation.streamline import Streamline
 # Reorder operations
-from finn.transformation.streamline.reorder import MoveLinearPastFork
+from finn.transformation.streamline.reorder import (
+    MoveLinearPastFork,
+    MoveLinearPastEltwiseAdd,
+    MoveScalarLinearPastInvariants
+)
+# FINN transformation converting ONNX nodes to HLS custom operators
+from finn.transformation.fpgadataflow.convert_to_hls_layers import (
+    InferAddStreamsLayer
+)
 # Remove some operations without real effect
 from transformation.remove import RemoveIdentityTranspose, RemoveIdentityReshape
 # Cleanup transformations
@@ -76,6 +84,21 @@ def step_streamline_attention(model: ModelWrapper, _):
     return model
 
 
+# Streamlining transformations to be applied to residual branches
+def step_streamline_residual(model: ModelWrapper, _):
+    # Streamline the residual connections by moving scale factors past
+    # elementwise add nodes
+    model = model.transform(MoveLinearPastEltwiseAdd())
+    model = model.transform(MoveLinearPastFork())
+    model = model.transform(MoveScalarLinearPastInvariants())
+    # Do the normal streamlining flow once again
+    model = model.transform(Streamline())
+    # And again to get the last floating-point Mul absorbed into thresholds
+    model = model.transform(Streamline())
+    # Return the streamlined model
+    return model
+
+
 # Function running the InferScaledDotProductAttention transformation
 def step_convert_attention_to_hls(model: ModelWrapper, _):
     # Try to infer reshaping of attention heads
@@ -88,6 +111,13 @@ def step_convert_attention_to_hls(model: ModelWrapper, _):
     model = model.transform(UnrollMultiHeadAttention())
     # Return the model with attention and multi-heads mapped to hls operators
     return model
+
+
+# Function running the transformations to convert residual branches to HLS
+# layers, in particular     model = model.transform(InferAddStreamsLayer())
+def step_convert_residual_to_hls(model: ModelWrapper, _):
+    # Convert elementwise add operations to streamed adding
+    return model.transform(InferAddStreamsLayer())
 
 
 # Function running the InferReplicateStream transformation

@@ -1,17 +1,17 @@
 # Model configuration section
 model:
   # Number of attention heads
-  num_heads: 8
+  num_heads: 4
   # Number of attention block "layers"
   num_layers: 1
   # Enables/disables bias on linear layers
   bias: True
   # Size of the input/output embedding dimension
-  emb_dim: 48
+  emb_dim: 8
   # Size of the MLP layer dimension
-  mlp_dim: 192
+  mlp_dim: 24
   # Length of the input sequence, i.e., context size
-  seq_len: 64
+  seq_len: 16
   # Number of bits to use for quantized representation
   bits: 4
   # Type of attention mask to use: 'none', 'causal' or 'const'

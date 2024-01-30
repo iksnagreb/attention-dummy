@@ -11,7 +11,9 @@ from build_steps import (
     step_tidy_up_pre_attention,
     step_tidy_up_post_attention,
     step_streamline_attention,
+    step_streamline_residual,
     step_convert_attention_to_hls,
+    step_convert_residual_to_hls,
     step_replicate_streams
 )
 
@@ -76,11 +78,13 @@ if __name__ == "__main__":
             # necessary...
             # Note: This triggers the verification step
             "step_streamline",
+            step_streamline_residual,
             # Another tidy-up step to remove unnecessary dimensions and
             # operations
             step_tidy_up_post_attention,
             "step_tidy_up",
             "step_convert_to_hls",
+            step_convert_residual_to_hls,
             # Properly replicate the stream feeding the query, key and value
             # projections
             step_replicate_streams,

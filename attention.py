@@ -7,7 +7,11 @@ import numpy as np
 import torch
 # Brevitas quantized variants of PyTorch layers
 from brevitas.nn import (
-    QuantIdentity, QuantMultiheadAttention, QuantLinear, QuantReLU
+    QuantIdentity,
+    QuantMultiheadAttention,
+    QuantLinear,
+    QuantReLU,
+    QuantEltwiseAdd
 )
 # Brevitas to QONNX model export
 from brevitas.export import export_qonnx
@@ -72,7 +76,7 @@ class DummyTransformer(torch.nn.Module):
             act_quant=Int8ActPerTensorFloat, return_quant_tensor=True
         )
         # Quantized multi-head attention operator from brevitas
-        self.attention_blocks = torch.nn.ModuleList([
+        self.attentions = torch.nn.ModuleList([
             QuantMultiheadAttention(
                 # Size of the embedding dimension (input and output)
                 embed_dim=emb_dim,
@@ -130,7 +134,7 @@ class DummyTransformer(torch.nn.Module):
         ])
         # Point-wise mlp following the attention block made up of two quantized
         # linear layers with ReLU non-linear activation in between and afterward
-        self.mlp_blocks = torch.nn.ModuleList([torch.nn.Sequential(
+        self.mlps = torch.nn.ModuleList([torch.nn.Sequential(
             # First mlp layer projecting to the mlp dimension
             QuantLinear(
                 # Inputs have the size of the attention embedding dimension
@@ -147,7 +151,7 @@ class DummyTransformer(torch.nn.Module):
                 # layers
                 bias_quant=BiasQuantizer,
                 # Quantize the input of the layer
-                input_quant=ActQuantizer,
+                input_quant=None,
                 # Return the quantization parameters so the next layer can
                 # quantize the bias
                 return_quant_tensor=True
@@ -181,23 +185,47 @@ class DummyTransformer(torch.nn.Module):
                 input_quant=None,
                 # Pass quantization information on to the next layer.
                 return_quant_tensor=True
-            ),
-            # Use the ReLU activation function instead of the more commonly used
-            # GELU, as the latter is not mapped easily to hardware with FINN
-            QuantReLU(
-                # Note: ReLU must be quantized to unsigned representation
-                act_quant=UnsignedActQuantizer,
-                # Pass quantization information on to the next layer.
-                # Note: Necessary to enable bias and bias quantizer on the input
-                # projections of the next multi-head attention.
-                return_quant_tensor=True
             )
         ) for _ in range(num_layers)])
 
-        # # Replace the final activation layer by a ReLU quantized to 8 bit to
-        # # make verification pass. No idea why it fails otherwise, probably
-        # # precision and/or rounding issues.
-        self.mlp_blocks[-1][-1] = QuantReLU(act_quant=Uint8ActPerTensorFloat)
+        # Quantizer for the first residual branch per layer, i.e., the one
+        # skipping past the attention block
+        self.residuals1 = torch.nn.ModuleList([
+            # Use a quantized elementwise add with shared input quantizer but
+            # no output quantizer
+            QuantEltwiseAdd(
+                # Shared input activation quantizer such that the scales at both
+                # input branches are identical. This allows floating point scale
+                # factor to be streamlined past the add-node.
+                input_quant=ActQuantizer,
+                # Disable the output quantizer after the add operation for now
+                # TODO: What do we actually need here?
+                output_quant=None,
+                # Pass quantization information on to the next layer.
+                return_quant_tensor=True
+            ) for _ in range(num_layers)
+        ])
+
+        # Quantizer for the second residual branch per layer, i.e., the one
+        # skipping past the MLP block
+        self.residuals2 = torch.nn.ModuleList([
+            # Use a quantized elementwise add with shared input quantizer but
+            # no output quantizer
+            QuantEltwiseAdd(
+                # Shared input activation quantizer such that the scales at both
+                # input branches are identical. This allows floating point scale
+                # factor to be streamlined past the add-node.
+                input_quant=ActQuantizer,
+                # Disable the output quantizer after the add operation for now
+                # TODO: What do we actually need here?
+                output_quant=None,
+                # Pass quantization information on to the next layer.
+                # Note: Not for the last layer to allow this to be combined with
+                # standard pytorch calls like .detach() or .numpy(), which are
+                # not directly available on QuantTensor.
+                return_quant_tensor=(layer != (num_layers - 1))
+            ) for layer in range(num_layers)
+        ])
 
         # Generate an attention mask depending on configuration
         #   Note: Prepare all and select from dictionary by config option
@@ -214,12 +242,19 @@ class DummyTransformer(torch.nn.Module):
         mask = self.mask.to(x.device) if self.mask is not None else None
         # Quantize the input preceding the first attention layer
         x = self.input_quant(x)  # noqa: Shadows name 'x' from outer scope
+        # Iterate over all layers from the four module lists zipped together
+        layers = zip(
+            self.attentions, self.mlps, self.residuals1, self.residuals2
+        )
         # There are multiple blocks of attention
-        for attention, mlp in zip(self.attention_blocks, self.mlp_blocks):
-            # Distribute input to all three attention inputs and use output as
-            # next blocks input
-            x = mlp(attention(x, x, x, attn_mask=mask)[0])  # noqa:
+        for attention, mlp, residual1, residual2 in layers:
+            # TODO: Here would be the first pre-layer-normalization
+            # Masked self-attention operation with residual connection
+            x = residual1(x, attention(x, x, x, attn_mask=mask)[0]) # noqa:
             # Shadows name 'x' from outer scope
+            # TODO: Here would be the second pre-layer-normalization
+            # Point-wise fully connected MLP block with residual connection
+            x = residual2(x, mlp(x))  # noqa: Shadows name 'x' from outer scope
         # Return the output of the final block as the global output
         return x
 
