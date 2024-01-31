@@ -68,28 +68,35 @@ if __name__ == "__main__":
             # Need to apply some tidy-up transformations before converting to
             # the finn dialect of onnx
             step_tidy_up_pre_attention,
+            # Convert all QONNX Quant nodes to Multithreshold nodes
             "step_qonnx_to_finn",
+            # Tidy up the graph after converting from QONNX to FINN format
+            # Note: Triggers a verification step
             "step_tidy_up",
             # Custom streamlining for models containing attention operators
             step_streamline_attention,
+            # Streamlining of the residual branches
+            step_streamline_residual,
+            # Another round using the default streamlining steps
+            # Note: Triggers a verification step
+            "step_streamline",
             # New conversion of the scaled dot-product attention pattern
             step_convert_attention_to_hls,
-            # For some reason another round of default streamlining is sometimes
-            # necessary...
-            # Note: This triggers the verification step
-            "step_streamline",
-            step_streamline_residual,
             # Another tidy-up step to remove unnecessary dimensions and
-            # operations
+            # operations after converting the attention operators to HLS
             step_tidy_up_post_attention,
-            "step_tidy_up",
+            # Convert most other layers supported by FINN to HLS operators
             "step_convert_to_hls",
+            # Converting the elementwise addition of residual branches is not
+            # done by FINN by default
             step_convert_residual_to_hls,
             # Properly replicate the stream feeding the query, key and value
             # projections
             step_replicate_streams,
+            # From here on it is basically the default flow...
             "step_create_dataflow_partition",
             "step_target_fps_parallelization",
+            # Note: This triggers a verification step
             "step_apply_folding_config",
             "step_minimize_bit_width",
             # The ScaledDotProductAttention custom op does not define any

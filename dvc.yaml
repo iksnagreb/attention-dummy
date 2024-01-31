@@ -29,9 +29,16 @@ stages:
     deps:
       # The script executing the stage
       - build.py
+      # The custom build steps implemented in this package
+      - build_steps.py
+      # Custom graph transformations implemented in this package
+      - transformation/
       # The model export produced by the setup stage: This triggers rerunning
       # this stage when the model configuration changes
       - attention.onnx
+      # Folding configurations specifying parallelization and FIFO sizes for the
+      # layers/operators
+      - ${build.folding_config_file}
       # Input/Output pair in numpy format for verification during the build
       - inp.npy
       - out.npy
@@ -54,6 +61,8 @@ stages:
       - metrics.py
       # The output products of the previous stage
       - ${build.output_dir}/
+      # The raw report file produced by finn
+      - ${metrics.report}
     # Parameters used by this stage
     params:
       # Track the build section from the parameters file
