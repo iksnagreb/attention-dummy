@@ -1,0 +1,42 @@
+{
+  "Defaults": {
+    "outFIFODepths": [
+      [
+        3072,
+        3072,
+        3072,
+        3072
+      ],
+      "all"
+    ],
+    "inFIFODepths": [
+      [
+        3072,
+        3072,
+        3072,
+        3072
+      ],
+      "all"
+    ]
+  },
+  "AddStreams_Batch_0": {
+    "PE": 1,
+    "inFIFODepths": [
+      8192,
+      8192
+    ],
+    "outFIFODepths": [
+      2
+    ]
+  },
+  "AddStreams_Batch_1": {
+    "PE": 1,
+    "inFIFODepths": [
+      8192,
+      8192
+    ],
+    "outFIFODepths": [
+      2
+    ]
+  }
+}

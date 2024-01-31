@@ -21,22 +21,22 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: 3ee63130d5beba834bbb60fc6200ff98
+      md5: 33e1830e55fe878be084b2db2dacaada
       size: 27999
     - path: inp.npy
       hash: md5
-      md5: e9f2f0c683b7ff1bd9032a923906c641
+      md5: f6d31405dd62838b9167c2cdcdb3eb93
       size: 640
     - path: out.npy
       hash: md5
-      md5: 4d6cadcca954cf04ead1ac1e62a2638a
+      md5: d1df8d76cb6c1bbcd204d79c1b41d1eb
       size: 640
   build:
     cmd: $FINN/run-docker.sh build_custom $(pwd)
     deps:
     - path: attention.onnx
       hash: md5
-      md5: 3ee63130d5beba834bbb60fc6200ff98
+      md5: 33e1830e55fe878be084b2db2dacaada
       size: 27999
     - path: build.py
       hash: md5
@@ -44,11 +44,11 @@ stages:
       size: 4828
     - path: inp.npy
       hash: md5
-      md5: e9f2f0c683b7ff1bd9032a923906c641
+      md5: f6d31405dd62838b9167c2cdcdb3eb93
       size: 640
     - path: out.npy
       hash: md5
-      md5: 4d6cadcca954cf04ead1ac1e62a2638a
+      md5: d1df8d76cb6c1bbcd204d79c1b41d1eb
       size: 640
     params:
       params.yaml:
@@ -56,20 +56,21 @@ stages:
           output_dir: build
           synth_clk_period_ns: 10.0
           board: RFSoC2x2
+          folding_config_file: folding.json
     outs:
     - path: build/
       hash: md5
-      md5: a2ce1f7e6e12c8f9dea9a7c568314ee5.dir
-      size: 91376440
-      nfiles: 1299
+      md5: e9de4e9ea0f706c9840e0142efc0fc44.dir
+      size: 97909207
+      nfiles: 1941
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: a2ce1f7e6e12c8f9dea9a7c568314ee5.dir
-      size: 91376440
-      nfiles: 1299
+      md5: e9de4e9ea0f706c9840e0142efc0fc44.dir
+      size: 97909207
+      nfiles: 1941
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -83,5 +84,5 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 96e571dfe6fcf661bf1e0972c028d6ae
-      size: 65
+      md5: 64641444fcc256170c14d9847e22dfea
+      size: 68
