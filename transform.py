@@ -75,11 +75,18 @@ if __name__ == '__main__':
 
     # Streamline the residual connections by moving scale factors past
     # elementwise add nodes
-    model = model.transform(MoveLinearPastEltwiseAdd())
+    model = model.transform(MoveLinearPastEltwiseAdd())  # noqa
     model = model.transform(MoveLinearPastFork())
     model = model.transform(MoveScalarLinearPastInvariants())
     # Do the normal streamlining flow once again
     model = model.transform(Streamline())
+    # Streamline the residual connections by moving scale factors past
+    # elementwise add nodes again
+    #   TODO: We probably need one round of these streamlining transformations
+    #    per transformer block...
+    model = model.transform(MoveLinearPastEltwiseAdd())
+    model = model.transform(MoveLinearPastFork())
+    model = model.transform(MoveScalarLinearPastInvariants())
     # And again to get the last floating-point Mul absorbed into thresholds
     model = model.transform(Streamline())
 
