@@ -18,5 +18,65 @@
       ],
       "all"
     ]
+  },
+  "ScaledDotProductAttention_0": {
+    "inFIFODepths": [
+      3072,
+      3072,
+      3072
+    ],
+    "outFIFODepths": [
+      3072
+    ]
+  },
+  "ScaledDotProductAttention_1": {
+    "inFIFODepths": [
+      3072,
+      3072,
+      3072
+    ],
+    "outFIFODepths": [
+      3072
+    ]
+  },
+  "ScaledDotProductAttention_2": {
+    "inFIFODepths": [
+      3072,
+      3072,
+      3072
+    ],
+    "outFIFODepths": [
+      3072
+    ]
+  },
+  "ScaledDotProductAttention_3": {
+    "inFIFODepths": [
+      3072,
+      3072,
+      3072
+    ],
+    "outFIFODepths": [
+      3072
+    ]
+  },
+  "AddStreams_Batch_0": {
+    "PE": 1,
+    "inFIFODepths": [
+      3072,
+      3072
+    ],
+    "outFIFODepths": [
+      2
+    ]
+  },
+  "AddStreams_Batch_1": {
+    "PE": 1,
+    "inFIFODepths": [
+      3072,
+      3072
+    ],
+    "outFIFODepths": [
+      2
+    ]
   }
 }

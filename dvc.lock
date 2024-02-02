@@ -48,8 +48,8 @@ stages:
       size: 6794
     - path: folding.json
       hash: md5
-      md5: cfbec18a534bd288de3cd13c51673b93
-      size: 226
+      md5: c5877b6f580f92a98ff488d469344cb7
+      size: 1068
     - path: inp.npy
       hash: md5
       md5: 1885324c0ecd6c16bcafbbeeedd0ea0d
@@ -73,21 +73,21 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 95373b28d1403261d5f4f03a3cae19e5.dir
-      size: 91543773
-      nfiles: 1296
+      md5: cdfcf528aa805d24be99808943af6e6a.dir
+      size: 93503646
+      nfiles: 1516
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 95373b28d1403261d5f4f03a3cae19e5.dir
-      size: 91543773
-      nfiles: 1296
+      md5: cdfcf528aa805d24be99808943af6e6a.dir
+      size: 93503646
+      nfiles: 1516
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 91e6de5f6cbd19c3109fda7ae01e48b3
-      size: 8700
+      md5: 7f1ad632f2cdc80ced451712572e0d50
+      size: 11844
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -101,5 +101,5 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: be13d39a9017e43576bc33aef65c2640
-      size: 65
+      md5: 9cfb8150493e8dc4d17854ca0a842e9a
+      size: 66
