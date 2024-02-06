@@ -14,30 +14,30 @@ stages:
           num_layers: 1
           bias: true
           emb_dim: 8
-          mlp_dim: 24
+          mlp_dim: 32
           seq_len: 16
           bits: 4
           mask: causal
     outs:
     - path: attention.onnx
       hash: md5
-      md5: 5764e5c974bb67be145dc07b6dd1b9a1
-      size: 27999
+      md5: e6a76dbfc684159426a49392b999da4a
+      size: 28545
     - path: inp.npy
       hash: md5
-      md5: 1885324c0ecd6c16bcafbbeeedd0ea0d
+      md5: dde1baa101ef5626ae4f95ff78c854fc
       size: 640
     - path: out.npy
       hash: md5
-      md5: b023ee8e11f4b740bf709222a4840d25
+      md5: b3780cf1804978c7c1247d6d17b9a87e
       size: 640
   build:
     cmd: $FINN/run-docker.sh build_custom $(pwd)
     deps:
     - path: attention.onnx
       hash: md5
-      md5: 5764e5c974bb67be145dc07b6dd1b9a1
-      size: 27999
+      md5: e6a76dbfc684159426a49392b999da4a
+      size: 28545
     - path: build.py
       hash: md5
       md5: 5f5ccafb7855e5404a88e551227bd447
@@ -48,20 +48,20 @@ stages:
       size: 6794
     - path: folding.json
       hash: md5
-      md5: c5877b6f580f92a98ff488d469344cb7
-      size: 1068
+      md5: 1955eb41957c814ffd4a01adca497014
+      size: 1239
     - path: inp.npy
       hash: md5
-      md5: 1885324c0ecd6c16bcafbbeeedd0ea0d
+      md5: dde1baa101ef5626ae4f95ff78c854fc
       size: 640
     - path: out.npy
       hash: md5
-      md5: b023ee8e11f4b740bf709222a4840d25
+      md5: b3780cf1804978c7c1247d6d17b9a87e
       size: 640
     - path: transformation/
       hash: md5
-      md5: f77e3b7366da93475626ec6fdea47396.dir
-      size: 107537
+      md5: 1253a243620d0ede3bf309750b0e8bf5.dir
+      size: 107507
       nfiles: 14
     params:
       params.yaml:
@@ -73,21 +73,21 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: cdfcf528aa805d24be99808943af6e6a.dir
-      size: 93503646
-      nfiles: 1516
+      md5: df28c984a0dfd3c00363fc0587ada841.dir
+      size: 91912869
+      nfiles: 1318
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: cdfcf528aa805d24be99808943af6e6a.dir
-      size: 93503646
-      nfiles: 1516
+      md5: df28c984a0dfd3c00363fc0587ada841.dir
+      size: 91912869
+      nfiles: 1318
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 7f1ad632f2cdc80ced451712572e0d50
-      size: 11844
+      md5: 933346e8de5e569a883f60d64b412851
+      size: 9538
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -101,5 +101,5 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 9cfb8150493e8dc4d17854ca0a842e9a
-      size: 66
+      md5: 31c51ec55414f84c2ce9ad570d6d9f38
+      size: 65

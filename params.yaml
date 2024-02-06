@@ -9,7 +9,7 @@ model:
   # Size of the input/output embedding dimension
   emb_dim: 8
   # Size of the MLP layer dimension
-  mlp_dim: 24
+  mlp_dim: 32
   # Length of the input sequence, i.e., context size
   seq_len: 16
   # Number of bits to use for quantized representation
