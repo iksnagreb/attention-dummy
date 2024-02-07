@@ -10,7 +10,10 @@ from qonnx.transformation.general import (
 )
 
 # Detect and map scaled dot-product attention to FINN custom operator
-from transformation.attention import InferScaledDotProductAttention
+from transformation.attention import (
+    InferScaledDotProductAttention,
+    AbsorbMultiThresholdIntoScaledDotProductAttention
+)
 # Mult-Head Attention support
 from transformation.attention_heads import (
     InferMultiHeads,
@@ -29,7 +32,7 @@ if __name__ == '__main__':
     model = ModelWrapper("attention.transformed.onnx")
 
     # Try to infer reshaping of attention heads
-    model = model.transform(InferMultiHeads())
+    model = model.transform(InferMultiHeads())  # noqa: Duplicate
     # Try to mode the mult-head splitting past the multi thresholds
     model = model.transform(MoveSplitMultiHeadsPastMultiThreshold())
     # Try to infer a ScaledDotProductAttention custom op
@@ -40,6 +43,8 @@ if __name__ == '__main__':
     model = model.transform(UnrollMultiHeadAttention())
     # Swap the order of merging the multi heads and applying thresholds
     model = model.transform(MoveMergeMultiHeadsPastMultiThreshold())
+    # If applicable, absorb the final thresholds into the attention operator
+    model = model.transform(AbsorbMultiThresholdIntoScaledDotProductAttention())
 
     # Remove dimensions of size 1 (single batch tensors)
     model = model.transform(Squeeze())

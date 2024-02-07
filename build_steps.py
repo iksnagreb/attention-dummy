@@ -31,7 +31,10 @@ from transformation.remove import RemoveIdentityTranspose, RemoveIdentityReshape
 # Cleanup transformations
 from transformation.squeeze import Squeeze
 # Detects the attention pattern and converts to HLS custom op
-from transformation.attention import InferScaledDotProductAttention
+from transformation.attention import (
+    InferScaledDotProductAttention,
+    AbsorbMultiThresholdIntoScaledDotProductAttention
+)
 # Mult-Head Attention support
 from transformation.attention_heads import (
     InferMultiHeads,
@@ -116,7 +119,7 @@ def step_streamline_residual(model: ModelWrapper, _):
 # Function running the InferScaledDotProductAttention transformation
 def step_convert_attention_to_hls(model: ModelWrapper, _):
     # Try to infer reshaping of attention heads
-    model = model.transform(InferMultiHeads())
+    model = model.transform(InferMultiHeads())  # noqa: Duplicate
     # Try to mode the mult-head splitting past the multi thresholds
     model = model.transform(MoveSplitMultiHeadsPastMultiThreshold())
     # Try to infer a ScaledDotProductAttention custom op
@@ -125,6 +128,8 @@ def step_convert_attention_to_hls(model: ModelWrapper, _):
     model = model.transform(UnrollMultiHeadAttention())
     # Swap the order of merging the multi heads and applying thresholds
     model = model.transform(MoveMergeMultiHeadsPastMultiThreshold())
+    # If applicable, absorb the final thresholds into the attention operator
+    model = model.transform(AbsorbMultiThresholdIntoScaledDotProductAttention())
     # Return the model with attention and multi-heads mapped to hls operators
     return model
 

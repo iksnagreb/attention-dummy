@@ -20,6 +20,8 @@ from qonnx.transformation.base import Transformation
 from qonnx.transformation.infer_shapes import InferShapes
 # Transformations running qonnx datatype inference
 from qonnx.transformation.infer_datatypes import InferDataTypes
+# Gets items from protobuf by name
+from qonnx.util.basic import get_by_name, remove_by_name
 # Utility function for transforming ONNX graphs
 from transformation.util import (
     op_types,
@@ -166,7 +168,7 @@ class InferScaledDotProductAttention(Transformation):
                     act_av_matmul = None
                 # List all activations for validation and further processing
                 #   Note: Order matters!
-                acts = [act_qk_matmul, act_av_matmul, act_a_softmax]
+                acts = [act_qk_matmul, act_a_softmax, act_av_matmul]
                 # Skip this node if any activation is not supported
                 if not all(is_supported_activation(act) for act in acts):
                     # Issue a warning of near match of the supported attention
@@ -524,6 +526,114 @@ class InferScaledDotProductAttention(Transformation):
                         graph.node.remove(n)
                 # The graph has been modified
                 graph_modified = True
+        # After rewiring need to re-do the shape annotations
+        model = model.transform(InferShapes())  # noqa: Shadows model
+        # As attention mask datatype might have been changed, it might be
+        # necessary to re-do the datatype annotations
+        model = model.transform(InferDataTypes())
+        # Return the transformed model and indicate whether the graph actually
+        # has been transformed
+        return model, graph_modified
+
+
+# Absorbs a MultiThreshold into ScaledDotProductAttention if there is not
+# already an activation included
+class AbsorbMultiThresholdIntoScaledDotProductAttention(Transformation):
+    # Applies the transform to a whole model graph
+    def apply(self, model: ModelWrapper):  # noqa
+        # Get the model graph out of the model wrapper object
+        graph = model.graph
+        # Keep track of whether the graph has been modified
+        graph_modified = False
+        # Iterate all nodes in the graph keeping track of the index
+        for index, node in enumerate(graph.node):
+            # Any MultiThreshold is a candidate node
+            if node.op_type == "MultiThreshold":
+                # Cannot be a join-node
+                if model.is_join_node(node):
+                    # Softly skip transforming this node
+                    continue
+                # Now we know there is only one producer operation preceding the
+                # multi-threshold node
+                attention = model.find_direct_predecessors(node)
+                # The first node in the graph might have no predecessor
+                if attention is None:
+                    # Skip this node
+                    continue
+                # Unpack the single predecessor from the list
+                attention = attention[0]
+                # Predecessor must actually be a ScaledDotProductAttention for
+                # this transform to apply
+                if not attention.op_type == "ScaledDotProductAttention":
+                    # Skip transforming this instance, probably no need to warn
+                    continue
+                # The attention operation may not fork for this transformation
+                # to be applicable
+                if model.is_fork_node(attention):
+                    # Softly skip transforming this, will result in standalone
+                    # thresholds
+                    continue
+
+                # Check whether the attention operation already has an output
+                # activation
+                if getCustomOp(attention).get_nodeattr("ActAVMatMul") != "none":
+                    # Issue a warning to make the user aware of this mismatch
+                    # pattern
+                    # @formatter:off
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f" {attention.name} already has an activation:"
+                        f" {get_by_name(attention.attribute, 'ActAVMatMul').s}"
+                    )
+                    # @formatter:on
+                    # Skip transforming this instance
+                    continue
+
+                # Datatype of the thresholding output, which will be the new
+                # output datatype of the attention operator
+                dtype = getCustomOp(node).get_nodeattr("out_dtype")
+                # Output bias after the thresholding, needs to be absorbed into
+                # the attention operator as well
+                out_bias = getCustomOp(node).get_nodeattr("out_bias")
+
+                # Collect new attributes
+                attrs = {
+                    # Datatype of output elements of the second matmul
+                    # Note: Always the same as the OType
+                    "OutAVMatMul": dtype,
+                    # Attention operator output type must be the same as the
+                    # output type of the last matmul
+                    "OType": dtype,
+                    # Activation function type following the second matmul
+                    "ActAVMatMul": "thresholds",
+                    # Output bias to be applied to the thresholding activation
+                    # following the Attention x Value multiplication
+                    "BiasActAVMatMul": out_bias,
+                }
+
+                # Run over all attributes to be changed
+                for key, value in attrs.items():
+                    # Remove the existing attribute
+                    remove_by_name(attention.attribute, key)
+                    # Insert a new attribute with the same name
+                    attention.attribute.append(oh.make_attribute(key, value))
+
+                # Append the new threshold tensor as the last input
+                attention.input.append(node.input[1])
+                # Annotate the new thresholds tensor datatype
+                model.set_tensor_datatype(
+                    node.input[1], model.get_tensor_datatype(node.input[0])
+                )
+                # Rewire the output of the attention operator to skip the
+                # thresholds node
+                attention.output[0] = node.output[0]
+                # Remove the thresholding node
+                graph.node.remove(node)
+                # The graph has been modified
+                graph_modified = True
+                # Break the loop after adding and removing nodes to start over
+                # with a clean index
+                break
         # After rewiring need to re-do the shape annotations
         model = model.transform(InferShapes())  # noqa: Shadows model
         # As attention mask datatype might have been changed, it might be

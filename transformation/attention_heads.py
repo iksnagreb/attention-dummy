@@ -301,7 +301,7 @@ class MoveSplitMultiHeadsPastMultiThreshold(Transformation):
                     continue
                 # Now we know there is only one consumer operation following the
                 # slice node
-                thresholds_node = model.find_direct_successors(node)[0]
+                thresholds_node = model.find_direct_successors(node)[0]  # noqa
                 # Successor must actually be a MultiThresholds for this
                 # transform to apply
                 if not thresholds_node.op_type == "MultiThreshold":
