@@ -15,7 +15,8 @@ from transformation.attention import InferScaledDotProductAttention
 from transformation.attention_heads import (
     InferMultiHeads,
     MoveSplitMultiHeadsPastMultiThreshold,
-    UnrollMultiHeadAttention
+    UnrollMultiHeadAttention,
+    MoveMergeMultiHeadsPastMultiThreshold
 )
 # Cleanup transformations
 from transformation.remove import RemoveIdentityTranspose
@@ -37,6 +38,8 @@ if __name__ == '__main__':
     model = model.transform(InferScaledDotProductAttention())
     # Parallelize attention head in the onnx graph
     model = model.transform(UnrollMultiHeadAttention())
+    # Swap the order of merging the multi heads and applying thresholds
+    model = model.transform(MoveMergeMultiHeadsPastMultiThreshold())
 
     # Remove dimensions of size 1 (single batch tensors)
     model = model.transform(Squeeze())

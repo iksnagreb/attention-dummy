@@ -36,7 +36,8 @@ from transformation.attention import InferScaledDotProductAttention
 from transformation.attention_heads import (
     InferMultiHeads,
     MoveSplitMultiHeadsPastMultiThreshold,
-    UnrollMultiHeadAttention
+    UnrollMultiHeadAttention,
+    MoveMergeMultiHeadsPastMultiThreshold
 )
 # Stream replication for outputs with multiple consumers
 from transformation.replicate_stream import InferReplicateStream
@@ -122,6 +123,8 @@ def step_convert_attention_to_hls(model: ModelWrapper, _):
     model = model.transform(InferScaledDotProductAttention())
     # Parallelize attention head in the onnx graph
     model = model.transform(UnrollMultiHeadAttention())
+    # Swap the order of merging the multi heads and applying thresholds
+    model = model.transform(MoveMergeMultiHeadsPastMultiThreshold())
     # Return the model with attention and multi-heads mapped to hls operators
     return model
 

@@ -14,6 +14,8 @@ from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation.base import Transformation
 # Transformation running onnx shape inference
 from qonnx.transformation.infer_shapes import InferShapes
+# Transformation running qonnx datatype inference
+from qonnx.transformation.infer_datatypes import InferDataTypes
 # QONNX graph transformations for renaming and cleaning up
 from qonnx.transformation.general import GiveUniqueParameterTensors
 # Gets items from protobuf by name
@@ -379,6 +381,127 @@ class MoveSplitMultiHeadsPastMultiThreshold(Transformation):
                 graph_modified = True
         # After rewiring need to re-do the shape annotations
         model = model.transform(InferShapes())  # noqa: Shadows from outer scope
+        # Return the transformed model and indicate whether the graph actually
+        # has been transformed
+        return model, graph_modified
+
+
+# Move MergeMultiHeads operation past MultiThreshold operation
+class MoveMergeMultiHeadsPastMultiThreshold(Transformation):
+    # Applies the transform to a whole model graph
+    def apply(self, model: ModelWrapper):  # noqa
+        # Get the model graph out of the model wrapper object
+        graph = model.graph
+        # Keep track of whether the graph has been modified
+        graph_modified = False
+        # Iterate all nodes in the graph keeping track of the index
+        for index, node in enumerate(graph.node):
+            # Transformation applies to MergeMultiHeads operation
+            if node.op_type == "MergeMultiHeads":
+                # Merging should not fork, but it may join
+                if model.is_fork_node(node):
+                    # Issue a warning to make the user aware of this mismatch
+                    # pattern
+                    # @formatter:off
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"Slicing may not fork: {node.name}"
+                    )
+                    # @formatter:on
+                    # Skip transforming this instance
+                    continue
+                # Now we know there is only one consumer operation following the
+                # slice node
+                thresholds_node = model.find_direct_successors(node)[0]  # noqa
+                # Successor must actually be a MultiThresholds for this
+                # transform to apply
+                if not thresholds_node.op_type == "MultiThreshold":
+                    # Skip transforming this instance, probably no need to warn
+                    continue
+
+                # Thresholds must not fork or join either
+                if (model.is_fork_node(thresholds_node)
+                        or model.is_join_node(thresholds_node)):
+                    # Issue a warning to make the user aware of this mismatch
+                    # pattern
+                    # @formatter:off
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"MultiThreshold may not join or fork:"
+                        f" {thresholds_node.name}"
+                    )
+                    # @formatter:on
+                    # Skip transforming this instance
+                    continue
+
+                # Get the thresholds tensor, which must be an initializer at
+                # the second input
+                thresholds = model.get_initializer(thresholds_node.input[1])
+                # This is indeed an error, no way to recover from this, so
+                # assertion is fine
+                assert thresholds is not None, \
+                    f"Missing threshold tensor for {thresholds_node.name}"
+
+                # The merge node should have an attribute specifying the number
+                # of heads
+                heads = get_by_name(node.attribute, "heads")
+                # Heads must be present, otherwise this is an errr
+                assert heads is not None, \
+                    f"Missing number of heads for {node.name}"
+                # Convert heads attribute proto to integer
+                heads = heads.i
+
+                # Split the thresholds for each head along the channel dimension
+                # Note: This is a list of thresholds per head now
+                thresholds = np.split(thresholds, heads)
+
+                # Need to insert a new thresholding operation at each input of
+                # the multi-head merging
+                for i, inp in enumerate(node.input):
+                    # Start by making a full copy of the original thresholds
+                    # node
+                    new_thresholds = copy.deepcopy(thresholds_node)
+                    # The input to the original merging node becomes to first
+                    # input to the new thresholds node
+                    new_thresholds.input[0] = inp
+                    # Create a new input tensor name for the thresholds
+                    new_thresholds.input[1] = model.make_new_valueinfo_name()
+                    # Annotate the new thresholds input with the new shape of
+                    # the split thresholds
+                    model.set_tensor_shape(
+                        new_thresholds.input[1], thresholds[i].shape
+                    )
+                    # Set the initializer input to the split thresholds
+                    model.set_initializer(
+                        new_thresholds.input[1], thresholds[i]
+                    )
+                    # Create a new output tensor name
+                    new_thresholds.output[0] = model.make_new_valueinfo_name()
+                    # Annotate the new output with the shape of the input
+                    model.set_tensor_shape(
+                        new_thresholds.output[0], model.get_tensor_shape(inp)
+                    )
+                    # Connect the new output tensor to the corresponding input
+                    # of the merge node
+                    node.input[i] = new_thresholds.output[0]
+                    # Connect the output of the merging node to successor of the
+                    # original thresholding node
+                    node.output[0] = thresholds_node.output[0]
+                    # Insert the thresholding node into the graph
+                    graph.node.insert(index + i - 1, new_thresholds)
+                # Remove the original thresholds node
+                graph.node.remove(thresholds_node)
+                # Graph has been modified, required additional transformations
+                # to be run
+                graph_modified = True
+                # Break the loop after adding and removing nodes to start over
+                # with a clean index
+                break
+        # After rewiring need to re-do the shape annotations
+        model = model.transform(InferShapes())  # noqa: Shadows from outer scope
+        # Re-do the datatype annotations after inserting new tensors without and
+        # moving tensors with existing annotations
+        model = model.transform(InferDataTypes())
         # Return the transformed model and indicate whether the graph actually
         # has been transformed
         return model, graph_modified
