@@ -64,7 +64,7 @@
     ]
   },
   "AddStreams_Batch_0": {
-    "PE": 1,
+    "PE": 8,
     "inFIFODepths": [
       128,
       128
@@ -74,7 +74,7 @@
     ]
   },
   "AddStreams_Batch_1": {
-    "PE": 1,
+    "PE": 8,
     "inFIFODepths": [
       128,
       128
