@@ -18,66 +18,66 @@
       ],
       "all"
     ],
-    "SIMD": [4, ["MatrixVectorActivation"]],
-    "PE": [4, ["MatrixVectorActivation"]],
-    "SeqFold": [16, ["ScaledDotProductAttention"]],
+    "SIMD": [32, ["MatrixVectorActivation"]],
+    "PE": [32, ["MatrixVectorActivation"]],
+    "SeqFold": [64, ["ScaledDotProductAttention"]],
     "EmbFold": [1, ["ScaledDotProductAttention"]]
   },
   "ScaledDotProductAttention_0": {
     "inFIFODepths": [
-      128,
-      128,
-      128
+      4096,
+      4096,
+      4096
     ],
     "outFIFODepths": [
-      128
+      4096
     ]
   },
   "ScaledDotProductAttention_1": {
     "inFIFODepths": [
-      128,
-      128,
-      128
+      4096,
+      4096,
+      4096
     ],
     "outFIFODepths": [
-      128
+      4096
     ]
   },
   "ScaledDotProductAttention_2": {
     "inFIFODepths": [
-      128,
-      128,
-      128
+      4096,
+      4096,
+      4096
     ],
     "outFIFODepths": [
-      128
+      4096
     ]
   },
   "ScaledDotProductAttention_3": {
     "inFIFODepths": [
-      128,
-      128,
-      128
+      4096,
+      4096,
+      4096
     ],
     "outFIFODepths": [
-      128
+      4096
     ]
   },
   "AddStreams_Batch_0": {
-    "PE": 8,
+    "PE": 768,
     "inFIFODepths": [
-      128,
-      128
+      4096,
+      4096
     ],
     "outFIFODepths": [
       2
     ]
   },
   "AddStreams_Batch_1": {
-    "PE": 8,
+    "PE": 768,
     "inFIFODepths": [
-      128,
-      128
+      4096,
+      4096
     ],
     "outFIFODepths": [
       2
