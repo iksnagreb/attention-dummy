@@ -1,15 +1,15 @@
 # Model configuration section
 model:
   # Number of attention heads
-  num_heads: 12
+  num_heads: 4
   # Number of attention block "layers"
   num_layers: 1
   # Enables/disables bias on linear layers
   bias: True
   # Size of the input/output embedding dimension
-  emb_dim: 768
+  emb_dim: 64
   # Size of the MLP layer dimension
-  mlp_dim: 3072
+  mlp_dim: 256
   # Length of the input sequence, i.e., context size
   seq_len: 64
   # Number of bits to use for quantized representation
@@ -28,12 +28,12 @@ build:
   folding_config_file: "folding.json"
 #  # Optional: Start the build from a specific step
 #  start_step: "step_tidy_up_pre_attention"
-  # Optional: Stop the build after a specific step
-  stop_step: "step_hls_ipgen"
+#  # Optional: Stop the build after a specific step
+#  stop_step: "step_hls_ipgen"
 # Metrics aggregation configuration
 metrics:
   # Path to the report file to be summarized
   # Note: remember to adjust the build directory when changing the config above
-  report: "build/report/estimate_layer_resources_hls.json"
+  report: "build/report/post_synth_resources.json"
   # Filter the report rows
-  filter: ".*"
+  filter: "(top)"

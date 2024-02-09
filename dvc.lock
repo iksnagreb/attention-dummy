@@ -10,34 +10,34 @@ stages:
     params:
       params.yaml:
         model:
-          num_heads: 12
+          num_heads: 4
           num_layers: 1
           bias: true
-          emb_dim: 768
-          mlp_dim: 3072
+          emb_dim: 64
+          mlp_dim: 256
           seq_len: 64
           bits: 4
           mask: causal
     outs:
     - path: attention.onnx
       hash: md5
-      md5: e4e1a63bca1f1db15e0e5382d57efbaf
-      size: 28370675
+      md5: 20bcbc041ea1288eb3a2b858beb4525e
+      size: 238807
     - path: inp.npy
       hash: md5
-      md5: 31528e14160b6ac523e2d58c3089cccf
-      size: 196736
+      md5: 1d8fd8b5be2e93b93acac5fcca449902
+      size: 16512
     - path: out.npy
       hash: md5
-      md5: 127d8ecba644252809e69d7fa68ce5b8
-      size: 196736
+      md5: 2c3696835f598f9b6f10e32a1f7eec8b
+      size: 16512
   build:
     cmd: $FINN/run-docker.sh build_custom $(pwd)
     deps:
     - path: attention.onnx
       hash: md5
-      md5: e4e1a63bca1f1db15e0e5382d57efbaf
-      size: 28370675
+      md5: 20bcbc041ea1288eb3a2b858beb4525e
+      size: 238807
     - path: build.py
       hash: md5
       md5: 5f5ccafb7855e5404a88e551227bd447
@@ -48,19 +48,19 @@ stages:
       size: 7218
     - path: folding.json
       hash: md5
-      md5: 73befad6f8474e3acb53375dc4e4788b
-      size: 1265
+      md5: 2dbafe3a2cce22fd9e9b99e34035b4e2
+      size: 1333
     - path: inp.npy
       hash: md5
-      md5: 31528e14160b6ac523e2d58c3089cccf
-      size: 196736
+      md5: 1d8fd8b5be2e93b93acac5fcca449902
+      size: 16512
     - path: out.npy
       hash: md5
-      md5: 127d8ecba644252809e69d7fa68ce5b8
-      size: 196736
+      md5: 2c3696835f598f9b6f10e32a1f7eec8b
+      size: 16512
     - path: transformation/
       hash: md5
-      md5: 2061cf32e553348ecbd3b6e372d78e02.dir
+      md5: 485f395064b7b82a71c9350fc83ae462.dir
       size: 121922
       nfiles: 14
     params:
@@ -70,25 +70,24 @@ stages:
           synth_clk_period_ns: 10.0
           board: RFSoC2x2
           folding_config_file: folding.json
-          stop_step: step_hls_ipgen
     outs:
     - path: build/
       hash: md5
-      md5: ba8ccf26d39c5c290d0ad508507b2377.dir
-      size: 586923409
-      nfiles: 33
+      md5: 120bd941db4145b7bea41861db23877f.dir
+      size: 101977301
+      nfiles: 1662
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: ba8ccf26d39c5c290d0ad508507b2377.dir
-      size: 586923409
-      nfiles: 33
-    - path: build/report/estimate_layer_resources_hls.json
+      md5: 120bd941db4145b7bea41861db23877f.dir
+      size: 101977301
+      nfiles: 1662
+    - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 48a90f4d1c89df6870cd930d8fd0e238
-      size: 4079
+      md5: 4b3cd35a6db279f35d79305589633275
+      size: 10271
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -97,10 +96,10 @@ stages:
       params.yaml:
         build.output_dir: build
         metrics:
-          report: build/report/estimate_layer_resources_hls.json
-          filter: .*
+          report: build/report/post_synth_resources.json
+          filter: (top)
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: b4f4af5863a7c7cb4a35c474e7101c0c
-      size: 66
+      md5: 152d042e8db5e6584fa85169df3cdb1c
+      size: 78
