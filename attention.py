@@ -273,7 +273,7 @@ if __name__ == "__main__":
     # Pass random data through the model to "calibrate" dummy quantizer. Large
     # batch to have more calibration samples. Otherwise, there is too much
     # deviation between this calibration and the verification samples.
-    model(torch.rand(8192, seq, dim))
+    model(torch.rand(32768, seq, dim))
     # Switch model to evaluation mode to have it fixed for export
     model = model.eval()
     # Sample random input tensor in batch-first layout
