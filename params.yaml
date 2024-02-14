@@ -3,7 +3,7 @@ model:
   # Number of attention heads
   num_heads: 8
   # Number of attention block "layers"
-  num_layers: 2
+  num_layers: 1
   # Enables/disables bias on linear layers
   bias: True
   # Size of the input/output embedding dimension

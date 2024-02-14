@@ -49,7 +49,8 @@
       [
         "ScaledDotProductAttention"
       ]
-    ]
+    ],
+    "ram_style": ["block", ["StreamingFIFO", "MatrixVectorActivation"]]
   },
   "ScaledDotProductAttention_0": {
     "inFIFODepths": [
