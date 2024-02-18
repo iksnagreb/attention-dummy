@@ -10,34 +10,34 @@ stages:
     params:
       params.yaml:
         model:
-          num_heads: 4
+          num_heads: 1
           num_layers: 1
           bias: true
-          emb_dim: 64
+          emb_dim: 8
           mlp_dim: 256
-          seq_len: 64
+          seq_len: 32
           bits: 4
-          mask: causal
+          mask: none
     outs:
     - path: attention.onnx
       hash: md5
-      md5: 20bcbc041ea1288eb3a2b858beb4525e
-      size: 238807
+      md5: 88d6fc98186639ccb065095779556dad
+      size: 42429
     - path: inp.npy
       hash: md5
-      md5: 1d8fd8b5be2e93b93acac5fcca449902
-      size: 16512
+      md5: 551810195270a8879bba2a4e2e2c0377
+      size: 1152
     - path: out.npy
       hash: md5
-      md5: 2c3696835f598f9b6f10e32a1f7eec8b
-      size: 16512
+      md5: 8f39df05218c5699d0289ba305204504
+      size: 1152
   build:
     cmd: $FINN/run-docker.sh build_custom $(pwd)
     deps:
     - path: attention.onnx
       hash: md5
-      md5: 20bcbc041ea1288eb3a2b858beb4525e
-      size: 238807
+      md5: 88d6fc98186639ccb065095779556dad
+      size: 42429
     - path: build.py
       hash: md5
       md5: 5f5ccafb7855e5404a88e551227bd447
@@ -46,22 +46,18 @@ stages:
       hash: md5
       md5: c89692c5389f5002596cf9d23adf0c5d
       size: 7218
-    - path: folding.json
-      hash: md5
-      md5: 2dbafe3a2cce22fd9e9b99e34035b4e2
-      size: 1333
     - path: inp.npy
       hash: md5
-      md5: 1d8fd8b5be2e93b93acac5fcca449902
-      size: 16512
+      md5: 551810195270a8879bba2a4e2e2c0377
+      size: 1152
     - path: out.npy
       hash: md5
-      md5: 2c3696835f598f9b6f10e32a1f7eec8b
-      size: 16512
+      md5: 8f39df05218c5699d0289ba305204504
+      size: 1152
     - path: transformation/
       hash: md5
-      md5: 485f395064b7b82a71c9350fc83ae462.dir
-      size: 121922
+      md5: af2d8809667853a7362dfc7c608910ce.dir
+      size: 121934
       nfiles: 14
     params:
       params.yaml:
@@ -70,24 +66,100 @@ stages:
           synth_clk_period_ns: 10.0
           board: RFSoC2x2
           folding_config_file: folding.json
+      folding.json:
+        AddStreams_Batch_0:
+          PE: 1
+          inFIFODepths:
+          - 256
+          - 256
+          outFIFODepths:
+          - 2
+        AddStreams_Batch_1:
+          PE: 1
+          inFIFODepths:
+          - 256
+          - 256
+          outFIFODepths:
+          - 2
+        Defaults:
+          outFIFODepths:
+          - - 2
+            - 2
+            - 2
+            - 2
+          - all
+          inFIFODepths:
+          - - 2
+            - 2
+            - 2
+            - 2
+          - all
+          SIMD:
+          - 8
+          - - MatrixVectorActivation
+          PE:
+          - 8
+          - - MatrixVectorActivation
+          SeqFold:
+          - 32
+          - - ScaledDotProductAttention
+          EmbFold:
+          - 1
+          - - ScaledDotProductAttention
+          ram_style:
+          - block
+          - - StreamingFIFO
+            - MatrixVectorActivation
+        ScaledDotProductAttention_0:
+          inFIFODepths:
+          - 256
+          - 256
+          - 256
+          outFIFODepths:
+          - 256
+        ScaledDotProductAttention_1:
+          inFIFODepths:
+          - 256
+          - 256
+          - 256
+          outFIFODepths:
+          - 256
+        ScaledDotProductAttention_2:
+          inFIFODepths:
+          - 256
+          - 256
+          - 256
+          outFIFODepths:
+          - 256
+        ScaledDotProductAttention_3:
+          inFIFODepths:
+          - 256
+          - 256
+          - 256
+          outFIFODepths:
+          - 256
+        Thresholding_Batch_0:
+          PE: 1
+        Thresholding_Batch_1:
+          PE: 1
     outs:
     - path: build/
       hash: md5
-      md5: 120bd941db4145b7bea41861db23877f.dir
-      size: 101977301
-      nfiles: 1662
+      md5: 5af632d9f02bb4c86cff3e5d08166039.dir
+      size: 87113359
+      nfiles: 899
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 120bd941db4145b7bea41861db23877f.dir
-      size: 101977301
-      nfiles: 1662
+      md5: 5af632d9f02bb4c86cff3e5d08166039.dir
+      size: 87113359
+      nfiles: 899
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 4b3cd35a6db279f35d79305589633275
-      size: 10271
+      md5: 5287ff373aa35c3388fe8c317d47f892
+      size: 5745
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -101,5 +173,5 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 152d042e8db5e6584fa85169df3cdb1c
-      size: 78
+      md5: c69279b64531f53e0d4a438ac14c988e
+      size: 72

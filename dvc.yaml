@@ -36,9 +36,6 @@ stages:
       # The model export produced by the setup stage: This triggers rerunning
       # this stage when the model configuration changes
       - attention.onnx
-      # Folding configurations specifying parallelization and FIFO sizes for the
-      # layers/operators
-      - ${build.folding_config_file}
       # Input/Output pair in numpy format for verification during the build
       - inp.npy
       - out.npy
@@ -46,6 +43,9 @@ stages:
     params:
       # Track the build section from the parameters file
       - build
+      # Folding configurations specifying parallelization and FIFO sizes for the
+      # layers/operators
+      - ${build.folding_config_file}:
     # Outputs produced by this stage which should be tracked and passed on to
     # the next stage
     outs:
