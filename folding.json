@@ -5,10 +5,6 @@
         2,
         2,
         2,
-        2,
-        2,
-        2,
-        2,
         2
       ],
       "all"
@@ -18,22 +14,18 @@
         2,
         2,
         2,
-        2,
-        2,
-        2,
-        2,
         2
       ],
       "all"
     ],
     "SIMD": [
-      32,
+      8,
       [
         "MatrixVectorActivation"
       ]
     ],
     "PE": [
-      16,
+      8,
       [
         "MatrixVectorActivation"
       ]
@@ -92,128 +84,8 @@
       256
     ]
   },
-  "ScaledDotProductAttention_4": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_5": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_6": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_7": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_8": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_9": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_10": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_11": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_12": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_13": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_14": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_15": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
   "AddStreams_Batch_0": {
-    "PE": 2,
+    "PE": 1,
     "inFIFODepths": [
       256,
       256
@@ -223,27 +95,7 @@
     ]
   },
   "AddStreams_Batch_1": {
-    "PE": 2,
-    "inFIFODepths": [
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      2
-    ]
-  },
-  "AddStreams_Batch_2": {
-    "PE": 2,
-    "inFIFODepths": [
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      2
-    ]
-  },
-  "AddStreams_Batch_3": {
-    "PE": 2,
+    "PE": 1,
     "inFIFODepths": [
       256,
       256
@@ -253,15 +105,9 @@
     ]
   },
   "Thresholding_Batch_0": {
-    "PE": 2
+    "PE": 1
   },
   "Thresholding_Batch_1": {
-    "PE": 2
-  },
-  "Thresholding_Batch_2": {
-    "PE": 2
-  },
-  "Thresholding_Batch_3": {
-    "PE": 2
+    "PE": 1
   }
 }

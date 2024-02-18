@@ -8,6 +8,8 @@ from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation.general import (
     GiveUniqueNodeNames, GiveReadableTensorNames
 )
+# FINN streamlining transformations
+from finn.transformation.streamline.absorb import AbsorbAddIntoMultiThreshold
 
 # Detect and map scaled dot-product attention to FINN custom operator
 from transformation.attention import (
@@ -35,6 +37,9 @@ if __name__ == '__main__':
     model = model.transform(InferMultiHeads())  # noqa: Duplicate
     # Try to mode the mult-head splitting past the multi thresholds
     model = model.transform(MoveSplitMultiHeadsPastMultiThreshold())
+    # Moving multi-head splitting past multi thresholds might enable absorbing
+    # adds into thresholds once again
+    model = model.transform(AbsorbAddIntoMultiThreshold())
     # Try to infer a ScaledDotProductAttention custom op
     #   Note: No further transformations can be run after this currently, as
     #   using a finn custom-op cannot be looked up for shape inference.
@@ -49,6 +54,8 @@ if __name__ == '__main__':
     # Remove dimensions of size 1 (single batch tensors)
     model = model.transform(Squeeze())
     model = model.transform(RemoveIdentityTranspose())
+    # Squeezing might enable absorbing adds into thresholds once again
+    model = model.transform(AbsorbAddIntoMultiThreshold())
     # Clean up the names for debugging
     model = model.transform(GiveUniqueNodeNames())
     model = model.transform(GiveReadableTensorNames())

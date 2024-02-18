@@ -1,13 +1,13 @@
 # Model configuration section
 model:
   # Number of attention heads
-  num_heads: 8
+  num_heads: 1
   # Number of attention block "layers"
   num_layers: 1
   # Enables/disables bias on linear layers
   bias: True
   # Size of the input/output embedding dimension
-  emb_dim: 64
+  emb_dim: 8
   # Size of the MLP layer dimension
   mlp_dim: 256
   # Length of the input sequence, i.e., context size

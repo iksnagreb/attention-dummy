@@ -5,15 +5,15 @@ stages:
     deps:
     - path: attention.py
       hash: md5
-      md5: dce88590604ce5f9c0dcf772573ce24f
-      size: 12911
+      md5: 3fa28553a44bca5080eb1c1404059d73
+      size: 12910
     params:
       params.yaml:
         model:
-          num_heads: 8
+          num_heads: 1
           num_layers: 1
           bias: true
-          emb_dim: 64
+          emb_dim: 8
           mlp_dim: 256
           seq_len: 32
           bits: 4
@@ -21,23 +21,23 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: c5c05fbb5f47b2b29f38c23ad6801dee
-      size: 222093
+      md5: 88d6fc98186639ccb065095779556dad
+      size: 42429
     - path: inp.npy
       hash: md5
-      md5: 4b9321a3cb3cd1e06edb60ca4d7695bb
-      size: 8320
+      md5: 551810195270a8879bba2a4e2e2c0377
+      size: 1152
     - path: out.npy
       hash: md5
-      md5: 5b2c3d14ec4868084b3d158a6fe5b8f7
-      size: 8320
+      md5: 8f39df05218c5699d0289ba305204504
+      size: 1152
   build:
     cmd: $FINN/run-docker.sh build_custom $(pwd)
     deps:
     - path: attention.onnx
       hash: md5
-      md5: c5c05fbb5f47b2b29f38c23ad6801dee
-      size: 222093
+      md5: 88d6fc98186639ccb065095779556dad
+      size: 42429
     - path: build.py
       hash: md5
       md5: 5f5ccafb7855e5404a88e551227bd447
@@ -48,16 +48,16 @@ stages:
       size: 7218
     - path: inp.npy
       hash: md5
-      md5: 4b9321a3cb3cd1e06edb60ca4d7695bb
-      size: 8320
+      md5: 551810195270a8879bba2a4e2e2c0377
+      size: 1152
     - path: out.npy
       hash: md5
-      md5: 5b2c3d14ec4868084b3d158a6fe5b8f7
-      size: 8320
+      md5: 8f39df05218c5699d0289ba305204504
+      size: 1152
     - path: transformation/
       hash: md5
-      md5: 11ff69717f962a6b68e182ed57e823e8.dir
-      size: 121892
+      md5: af2d8809667853a7362dfc7c608910ce.dir
+      size: 121934
       nfiles: 14
     params:
       params.yaml:
@@ -68,28 +68,14 @@ stages:
           folding_config_file: folding.json
       folding.json:
         AddStreams_Batch_0:
-          PE: 2
+          PE: 1
           inFIFODepths:
           - 256
           - 256
           outFIFODepths:
           - 2
         AddStreams_Batch_1:
-          PE: 2
-          inFIFODepths:
-          - 256
-          - 256
-          outFIFODepths:
-          - 2
-        AddStreams_Batch_2:
-          PE: 2
-          inFIFODepths:
-          - 256
-          - 256
-          outFIFODepths:
-          - 2
-        AddStreams_Batch_3:
-          PE: 2
+          PE: 1
           inFIFODepths:
           - 256
           - 256
@@ -101,26 +87,18 @@ stages:
             - 2
             - 2
             - 2
-            - 2
-            - 2
-            - 2
-            - 2
           - all
           inFIFODepths:
           - - 2
             - 2
             - 2
             - 2
-            - 2
-            - 2
-            - 2
-            - 2
           - all
           SIMD:
-          - 32
+          - 8
           - - MatrixVectorActivation
           PE:
-          - 16
+          - 8
           - - MatrixVectorActivation
           SeqFold:
           - 32
@@ -146,48 +124,6 @@ stages:
           - 256
           outFIFODepths:
           - 256
-        ScaledDotProductAttention_10:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
-        ScaledDotProductAttention_11:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
-        ScaledDotProductAttention_12:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
-        ScaledDotProductAttention_13:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
-        ScaledDotProductAttention_14:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
-        ScaledDotProductAttention_15:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
         ScaledDotProductAttention_2:
           inFIFODepths:
           - 256
@@ -202,74 +138,28 @@ stages:
           - 256
           outFIFODepths:
           - 256
-        ScaledDotProductAttention_4:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
-        ScaledDotProductAttention_5:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
-        ScaledDotProductAttention_6:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
-        ScaledDotProductAttention_7:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
-        ScaledDotProductAttention_8:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
-        ScaledDotProductAttention_9:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
         Thresholding_Batch_0:
-          PE: 2
+          PE: 1
         Thresholding_Batch_1:
-          PE: 2
-        Thresholding_Batch_2:
-          PE: 2
-        Thresholding_Batch_3:
-          PE: 2
+          PE: 1
     outs:
     - path: build/
       hash: md5
-      md5: 17c81f0e50b1c9b7423a68109075a4e8.dir
-      size: 109288546
-      nfiles: 2218
+      md5: 5af632d9f02bb4c86cff3e5d08166039.dir
+      size: 87113359
+      nfiles: 899
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 17c81f0e50b1c9b7423a68109075a4e8.dir
-      size: 109288546
-      nfiles: 2218
+      md5: 5af632d9f02bb4c86cff3e5d08166039.dir
+      size: 87113359
+      nfiles: 899
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 4abc311080a603222fc31ea71431e668
-      size: 13667
+      md5: 5287ff373aa35c3388fe8c317d47f892
+      size: 5745
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -283,5 +173,5 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 244f473be35f2e67c91aad89a394c154
-      size: 77
+      md5: c69279b64531f53e0d4a438ac14c988e
+      size: 72
