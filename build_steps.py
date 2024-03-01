@@ -16,6 +16,8 @@ from qonnx.transformation.infer_data_layouts import InferDataLayouts
 from qonnx.transformation.fold_constants import FoldConstants
 # Streamlining transformation: This is a collection of various transformations
 from finn.transformation.streamline import Streamline
+# Fuse/Absorb operations
+from finn.transformation.streamline.absorb import AbsorbAddIntoMultiThreshold
 # Reorder operations
 from finn.transformation.streamline.reorder import (
     MoveLinearPastFork,
@@ -30,6 +32,11 @@ from finn.transformation.fpgadataflow.convert_to_hls_layers import (
 from transformation.remove import RemoveIdentityTranspose, RemoveIdentityReshape
 # Cleanup transformations
 from transformation.squeeze import Squeeze
+# Transformations involving Transpose operators
+from transformation.transpose import (
+    MoveTransposePastEltwise,
+    CollapseRepeatedTranspose
+)
 # Detects the attention pattern and converts to HLS custom op
 from transformation.attention import (
     InferScaledDotProductAttention,
@@ -116,12 +123,31 @@ def step_streamline_residual(model: ModelWrapper, _):
     return model
 
 
+# Streamlining transformation to be applied to the normalization layers
+def step_streamline_norms(model: ModelWrapper, _):
+    # Streamline transposed batch normalization (move transposes past the
+    # scale-bias operator, so they can be collapsed afterward)
+    model = model.transform(MoveTransposePastEltwise())
+    # There should now be transposes next to each other which can be collapsed
+    model = model.transform(CollapseRepeatedTranspose())
+    # The transposes around the batch normalization should be collapsed by now
+    # and cancel each other out
+    model = model.transform(RemoveIdentityTranspose())
+    # This might have enabled more streamlining transformations
+    model = model.transform(Streamline())
+    # Return the streamlined model
+    return model
+
+
 # Function running the InferScaledDotProductAttention transformation
 def step_convert_attention_to_hls(model: ModelWrapper, _):
     # Try to infer reshaping of attention heads
     model = model.transform(InferMultiHeads())  # noqa: Duplicate
     # Try to mode the mult-head splitting past the multi thresholds
     model = model.transform(MoveSplitMultiHeadsPastMultiThreshold())
+    # Moving multi-head splitting past multi thresholds might enable absorbing
+    # adds into thresholds once again
+    model = model.transform(AbsorbAddIntoMultiThreshold())
     # Try to infer a ScaledDotProductAttention custom op
     model = model.transform(InferScaledDotProductAttention())
     # Parallelize attention head in the onnx graph
@@ -153,6 +179,8 @@ def step_tidy_up_post_attention(model: ModelWrapper, _):
     # Remove dimensions of size 1 (single batch tensors)
     model = model.transform(Squeeze())
     model = model.transform(RemoveIdentityTranspose())
+    # Squeezing might enable absorbing adds into thresholds once again
+    model = model.transform(AbsorbAddIntoMultiThreshold())
     # Clean up the names for debugging
     model = model.transform(GiveUniqueNodeNames())
     model = model.transform(GiveReadableTensorNames())

@@ -12,6 +12,7 @@ from build_steps import (
     step_tidy_up_post_attention,
     step_streamline_attention,
     step_streamline_residual,
+    step_streamline_norms,
     step_convert_attention_to_hls,
     step_convert_residual_to_hls,
     step_replicate_streams
@@ -77,6 +78,8 @@ if __name__ == "__main__":
             step_streamline_attention,
             # Streamlining of the residual branches
             step_streamline_residual,
+            # Streamline the normalization layers, i.e., transposed batch norm
+            step_streamline_norms,
             # Another round using the default streamlining steps
             # Note: Triggers a verification step
             "step_streamline",
