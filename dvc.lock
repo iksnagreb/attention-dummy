@@ -21,22 +21,22 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: 88d6fc98186639ccb065095779556dad
+      md5: 4a6396dafdb25443e8471c8fe0b9922e
       size: 42429
     - path: inp.npy
       hash: md5
-      md5: 551810195270a8879bba2a4e2e2c0377
+      md5: b8f3528779aeb5dac5a6941479de2eff
       size: 1152
     - path: out.npy
       hash: md5
-      md5: 8f39df05218c5699d0289ba305204504
+      md5: 7c53543304c2596cb5252232998ac948
       size: 1152
   build:
     cmd: $FINN/run-docker.sh build_custom $(pwd)
     deps:
     - path: attention.onnx
       hash: md5
-      md5: 88d6fc98186639ccb065095779556dad
+      md5: 4a6396dafdb25443e8471c8fe0b9922e
       size: 42429
     - path: build.py
       hash: md5
@@ -48,16 +48,16 @@ stages:
       size: 8554
     - path: inp.npy
       hash: md5
-      md5: 551810195270a8879bba2a4e2e2c0377
+      md5: b8f3528779aeb5dac5a6941479de2eff
       size: 1152
     - path: out.npy
       hash: md5
-      md5: 8f39df05218c5699d0289ba305204504
+      md5: 7c53543304c2596cb5252232998ac948
       size: 1152
     - path: transformation/
       hash: md5
-      md5: 013048b35e817d7b22f58eac928680f2.dir
-      size: 133395
+      md5: ca2ab5c5f445cf109a740d33415b7297.dir
+      size: 133957
       nfiles: 16
     params:
       params.yaml:
@@ -145,20 +145,20 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 7817f1c9647f72bd52377167ac97ba73.dir
-      size: 87168628
-      nfiles: 900
+      md5: b17c3157fd45e04e0eab1865c73da2de.dir
+      size: 87173245
+      nfiles: 902
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 7817f1c9647f72bd52377167ac97ba73.dir
-      size: 87168628
-      nfiles: 900
+      md5: b17c3157fd45e04e0eab1865c73da2de.dir
+      size: 87173245
+      nfiles: 902
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 5287ff373aa35c3388fe8c317d47f892
+      md5: eebf3e9777182c6cb672a1d7c11d4469
       size: 5745
     - path: metrics.py
       hash: md5
@@ -173,5 +173,5 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: c69279b64531f53e0d4a438ac14c988e
+      md5: 3ed9f625adfbacc6b7feb45b154437ba
       size: 72
