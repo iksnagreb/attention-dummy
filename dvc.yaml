@@ -3,9 +3,12 @@ stages:
   # Stage preparing the model form the configuration
   setup:
     # Stage run the setup script as the command
-    cmd: python -m attention
+    cmd: bash run.sh python -m attention
     # Dependencies of this stage to determine when it needs to be rerun
     deps:
+      # Run scripts orchestrating the script execution (potentially via sbatch)
+      - run.sh
+      - batch.sh
       # The script executing the stage
       - attention.py
     # Parameters used by this stage
@@ -24,9 +27,12 @@ stages:
   build:
     # Command running a finn build of the model produced during setup
     #   Note: More options should be provided via environment variables
-    cmd: $FINN/run-docker.sh build_custom $(pwd)
+    cmd: bash run.sh $FINN/run-docker.sh build_custom $(pwd)
     # Dependencies of this stage to determine when it needs to be rerun
     deps:
+      # Run scripts orchestrating the script execution (potentially via sbatch)
+      - run.sh
+      - batch.sh
       # The script executing the stage
       - build.py
       # The custom build steps implemented in this package
@@ -54,9 +60,12 @@ stages:
   # Stage collecting the synthesis metrics form the build stage
   metrics:
     # Command aggregating metrics from the build output products
-    cmd: python -m metrics
+    cmd: bash run.sh python -m metrics
     # Dependencies of this stage to determine when it needs to be rerun
     deps:
+      # Run scripts orchestrating the script execution (potentially via sbatch)
+      - run.sh
+      - batch.sh
       # The script executing the stage
       - metrics.py
       # The output products of the previous stage
