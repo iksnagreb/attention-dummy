@@ -1,5 +1,8 @@
+dvc~=3.48.1
 torch~=1.13.1
 onnx~=1.15.0
+onnxoptimizer~=0.3.13
+onnxruntime~=1.16.3
 numpy~=1.26.2
 PyYAML~=6.0.1
 pandas~=2.2.0

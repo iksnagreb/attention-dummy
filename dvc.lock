@@ -7,14 +7,14 @@ stages:
       hash: md5
       md5: 3fa28553a44bca5080eb1c1404059d73
       size: 12910
-    - path: batch.sh
+    - path: noctua.sh
       hash: md5
-      md5: adfbd5c72e97c8112b7b6b881df5af37
-      size: 1589
+      md5: 6a50a9c09aceca7ca860dfc51689aff6
+      size: 1832
     - path: run.sh
       hash: md5
-      md5: e41189deb570e85978172055c9b74b22
-      size: 533
+      md5: 33879adf4363fd1b49d1455789f87d4b
+      size: 1586
     params:
       params.yaml:
         model:
@@ -29,27 +29,23 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: e0a1abcf16871fef02a636cc486dd8ec
+      md5: 33c69f8a78ac48f4d149fcd10a8e267e
       size: 42429
     - path: inp.npy
       hash: md5
-      md5: 4fb0bbfb48a99180cc385f47b376af6c
+      md5: 791c2aa7ccc287182b03fafe8c5aeef4
       size: 1152
     - path: out.npy
       hash: md5
-      md5: fe421c9c5d88d8e2afef9d5585e39992
+      md5: 76d38b10f80aac70d94e30bd5c3a2196
       size: 1152
   build:
-    cmd: bash run.sh $FINN/run-docker.sh build_custom $(pwd)
+    cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
     deps:
     - path: attention.onnx
       hash: md5
-      md5: e0a1abcf16871fef02a636cc486dd8ec
+      md5: 33c69f8a78ac48f4d149fcd10a8e267e
       size: 42429
-    - path: batch.sh
-      hash: md5
-      md5: adfbd5c72e97c8112b7b6b881df5af37
-      size: 1589
     - path: build.py
       hash: md5
       md5: a8768396c680fac2968cdd8962603b56
@@ -60,20 +56,24 @@ stages:
       size: 8554
     - path: inp.npy
       hash: md5
-      md5: 4fb0bbfb48a99180cc385f47b376af6c
+      md5: 791c2aa7ccc287182b03fafe8c5aeef4
       size: 1152
+    - path: noctua.sh
+      hash: md5
+      md5: 6a50a9c09aceca7ca860dfc51689aff6
+      size: 1832
     - path: out.npy
       hash: md5
-      md5: fe421c9c5d88d8e2afef9d5585e39992
+      md5: 76d38b10f80aac70d94e30bd5c3a2196
       size: 1152
     - path: run.sh
       hash: md5
-      md5: e41189deb570e85978172055c9b74b22
-      size: 533
+      md5: 33879adf4363fd1b49d1455789f87d4b
+      size: 1586
     - path: transformation/
       hash: md5
-      md5: ca2ab5c5f445cf109a740d33415b7297.dir
-      size: 133957
+      md5: 92ccbfeea4bfbf104b3f0487ce23ffe2.dir
+      size: 133987
       nfiles: 16
     params:
       params.yaml:
@@ -161,33 +161,33 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: aec9a0bfe17a72662ed591b537689cce.dir
-      size: 87091670
-      nfiles: 900
+      md5: 7132bb6c1ec60fb2b19a71bb4e88513c.dir
+      size: 89414847
+      nfiles: 1077
   metrics:
     cmd: bash run.sh python -m metrics
     deps:
-    - path: batch.sh
-      hash: md5
-      md5: adfbd5c72e97c8112b7b6b881df5af37
-      size: 1589
     - path: build/
       hash: md5
-      md5: aec9a0bfe17a72662ed591b537689cce.dir
-      size: 87091670
-      nfiles: 900
+      md5: 7132bb6c1ec60fb2b19a71bb4e88513c.dir
+      size: 89414847
+      nfiles: 1077
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 7ccb027ffc7fb9e20a69e6034a7141fb
-      size: 5745
+      md5: ed008cbc0761fcfb7cae5036e6a92c67
+      size: 8555
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
       size: 932
+    - path: noctua.sh
+      hash: md5
+      md5: 6a50a9c09aceca7ca860dfc51689aff6
+      size: 1832
     - path: run.sh
       hash: md5
-      md5: e41189deb570e85978172055c9b74b22
-      size: 533
+      md5: 33879adf4363fd1b49d1455789f87d4b
+      size: 1586
     params:
       params.yaml:
         build.output_dir: build
@@ -197,5 +197,5 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 12aff4f5a546a3428d53efa78eccb4f0
+      md5: ce931c692362af2684431c9c91847f89
       size: 72
