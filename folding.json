@@ -19,13 +19,13 @@
       "all"
     ],
     "SIMD": [
-      8,
+      2,
       [
         "MatrixVectorActivation"
       ]
     ],
     "PE": [
-      8,
+      4,
       [
         "MatrixVectorActivation"
       ]
