@@ -72,9 +72,9 @@ stages:
       size: 1586
     - path: transformation/
       hash: md5
-      md5: 92ccbfeea4bfbf104b3f0487ce23ffe2.dir
-      size: 133987
-      nfiles: 16
+      md5: 442571afa6ba9d6d6b1cfcd26f02d34a.dir
+      size: 104396
+      nfiles: 8
     params:
       params.yaml:
         build:
@@ -161,16 +161,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: dc057cc5e7898c7c7c118c8905c2f2f4.dir
-      size: 90091823
+      md5: e74c1fb4c0cd17ff1bb90269f2575657.dir
+      size: 90098098
       nfiles: 1111
   metrics:
     cmd: bash run.sh python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: dc057cc5e7898c7c7c118c8905c2f2f4.dir
-      size: 90091823
+      md5: e74c1fb4c0cd17ff1bb90269f2575657.dir
+      size: 90098098
       nfiles: 1111
     - path: build/report/post_synth_resources.json
       hash: md5
