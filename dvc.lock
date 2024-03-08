@@ -132,50 +132,31 @@ stages:
           - 256
           - 256
           outFIFODepths:
-          - 256
-        ScaledDotProductAttention_1:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
-        ScaledDotProductAttention_2:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
-        ScaledDotProductAttention_3:
-          inFIFODepths:
-          - 256
-          - 256
-          - 256
-          outFIFODepths:
-          - 256
+          - 2
         Thresholding_Batch_0:
           PE: 1
         Thresholding_Batch_1:
           PE: 1
+        Thresholding_Batch_2:
+          PE: 1
     outs:
     - path: build/
       hash: md5
-      md5: e74c1fb4c0cd17ff1bb90269f2575657.dir
-      size: 90098098
+      md5: 4743d17734c38832c37bac24ea98a07b.dir
+      size: 90096208
       nfiles: 1111
   metrics:
     cmd: bash run.sh python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: e74c1fb4c0cd17ff1bb90269f2575657.dir
-      size: 90098098
+      md5: 4743d17734c38832c37bac24ea98a07b.dir
+      size: 90096208
       nfiles: 1111
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 15667c3b0c5056054f649aa6e3ed79c4
-      size: 11365
+      md5: e3870052629ca9df7ba56f6a71c92ba6
+      size: 11362
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -197,5 +178,5 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: cb0edb4ac8e8834c9c7ff2d34ec0afbb
+      md5: ccbdc2077ac98b976cd96d1378daa965
       size: 71

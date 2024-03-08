@@ -51,37 +51,7 @@
       256
     ],
     "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_1": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_2": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
-    ]
-  },
-  "ScaledDotProductAttention_3": {
-    "inFIFODepths": [
-      256,
-      256,
-      256
-    ],
-    "outFIFODepths": [
-      256
+      2
     ]
   },
   "AddStreams_Batch_0": {
@@ -108,6 +78,9 @@
     "PE": 1
   },
   "Thresholding_Batch_1": {
+    "PE": 1
+  },
+  "Thresholding_Batch_2": {
     "PE": 1
   }
 }
