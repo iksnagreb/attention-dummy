@@ -9,12 +9,12 @@ stages:
       size: 12910
     - path: noctua.sh
       hash: md5
-      md5: 6a50a9c09aceca7ca860dfc51689aff6
+      md5: f3e8cc342b63cddcd2e07bfe63f6518c
       size: 1832
     - path: run.sh
       hash: md5
-      md5: 33879adf4363fd1b49d1455789f87d4b
-      size: 1586
+      md5: 6e3e34149c16795c5a8424a51bdbf5f8
+      size: 1616
     params:
       params.yaml:
         model:
@@ -29,22 +29,22 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: 79fb0f13a602c1905ae564c8612781b4
+      md5: 1d8a4806e60b720be6a108eb0ff7f1f9
       size: 27193
     - path: inp.npy
       hash: md5
-      md5: a3cb647fe95b27b3acdc0ece54cff717
+      md5: 5c2ea3078dd7b58d85d9ab424c1243cc
       size: 1152
     - path: out.npy
       hash: md5
-      md5: 98eedc450c49ab19f3fd659e2b7dd5cf
+      md5: 77d13e8be8cda33479fad2acb7dc6c6f
       size: 1152
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
     deps:
     - path: attention.onnx
       hash: md5
-      md5: 79fb0f13a602c1905ae564c8612781b4
+      md5: 1d8a4806e60b720be6a108eb0ff7f1f9
       size: 27193
     - path: build.py
       hash: md5
@@ -56,20 +56,20 @@ stages:
       size: 8554
     - path: inp.npy
       hash: md5
-      md5: a3cb647fe95b27b3acdc0ece54cff717
+      md5: 5c2ea3078dd7b58d85d9ab424c1243cc
       size: 1152
     - path: noctua.sh
       hash: md5
-      md5: 6a50a9c09aceca7ca860dfc51689aff6
+      md5: f3e8cc342b63cddcd2e07bfe63f6518c
       size: 1832
     - path: out.npy
       hash: md5
-      md5: 98eedc450c49ab19f3fd659e2b7dd5cf
+      md5: 77d13e8be8cda33479fad2acb7dc6c6f
       size: 1152
     - path: run.sh
       hash: md5
-      md5: 33879adf4363fd1b49d1455789f87d4b
-      size: 1586
+      md5: 6e3e34149c16795c5a8424a51bdbf5f8
+      size: 1616
     - path: transformation/
       hash: md5
       md5: 442571afa6ba9d6d6b1cfcd26f02d34a.dir
@@ -84,27 +84,21 @@ stages:
           folding_config_file: folding.json
       folding.json:
         AddStreams_Batch_0:
-          PE: 1
           inFIFODepths:
           - 256
           - 256
-          outFIFODepths:
-          - 2
         AddStreams_Batch_1:
-          PE: 1
           inFIFODepths:
           - 256
           - 256
-          outFIFODepths:
-          - 2
         Defaults:
-          outFIFODepths:
+          inFIFODepths:
           - - 2
             - 2
             - 2
             - 2
           - all
-          inFIFODepths:
+          outFIFODepths:
           - - 2
             - 2
             - 2
@@ -116,12 +110,6 @@ stages:
           PE:
           - 4
           - - MatrixVectorActivation
-          SeqFold:
-          - 32
-          - - ScaledDotProductAttention
-          EmbFold:
-          - 1
-          - - ScaledDotProductAttention
           ram_style:
           - block
           - - StreamingFIFO
@@ -131,44 +119,38 @@ stages:
           - 256
           - 256
           - 256
-          outFIFODepths:
-          - 2
-        Thresholding_Batch_0:
-          PE: 1
-        Thresholding_Batch_1:
-          PE: 1
-        Thresholding_Batch_2:
-          PE: 1
+          SeqFold: 32
+          EmbFold: 1
     outs:
     - path: build/
       hash: md5
-      md5: 4743d17734c38832c37bac24ea98a07b.dir
-      size: 90096208
-      nfiles: 1111
+      md5: 46137f7f0225f07ecf360bdc307e84f6.dir
+      size: 86753246
+      nfiles: 861
   metrics:
     cmd: bash run.sh python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 4743d17734c38832c37bac24ea98a07b.dir
-      size: 90096208
-      nfiles: 1111
+      md5: 46137f7f0225f07ecf360bdc307e84f6.dir
+      size: 86753246
+      nfiles: 861
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: e3870052629ca9df7ba56f6a71c92ba6
-      size: 11362
+      md5: 25648afccb8dd0e420d83f279da7ac46
+      size: 7074
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
       size: 932
     - path: noctua.sh
       hash: md5
-      md5: 6a50a9c09aceca7ca860dfc51689aff6
+      md5: f3e8cc342b63cddcd2e07bfe63f6518c
       size: 1832
     - path: run.sh
       hash: md5
-      md5: 33879adf4363fd1b49d1455789f87d4b
-      size: 1586
+      md5: 6e3e34149c16795c5a8424a51bdbf5f8
+      size: 1616
     params:
       params.yaml:
         build.output_dir: build
@@ -178,5 +160,41 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: ccbdc2077ac98b976cd96d1378daa965
-      size: 71
+      md5: fc96ab9949569c703594e0741d9acd02
+      size: 72
+  folding:
+    cmd: bash run.sh python -m make_folding
+    deps:
+    - path: make_folding.py
+      hash: md5
+      md5: 979b937b754bdf1017a9e544ee124e1b
+      size: 4821
+    - path: noctua.sh
+      hash: md5
+      md5: f3e8cc342b63cddcd2e07bfe63f6518c
+      size: 1832
+    - path: run.sh
+      hash: md5
+      md5: 6e3e34149c16795c5a8424a51bdbf5f8
+      size: 1616
+    params:
+      params.yaml:
+        build:
+          output_dir: build
+          synth_clk_period_ns: 10.0
+          board: RFSoC2x2
+          folding_config_file: folding.json
+        model:
+          num_heads: 1
+          num_layers: 1
+          bias: true
+          emb_dim: 8
+          mlp_dim: 32
+          seq_len: 32
+          bits: 4
+          mask: none
+    outs:
+    - path: folding.json
+      hash: md5
+      md5: 196772f35330e4b066a91c7838b9b698
+      size: 441

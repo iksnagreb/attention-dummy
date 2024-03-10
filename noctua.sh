@@ -36,7 +36,7 @@ if [[ -d "$FINN" ]]; then
   export FINN=/dev/shm/finn/
 fi;
 
-# Generarw FINN build outputs and temporaries to the ramdisk
+# Generate FINN build outputs and temporaries to the ramdisk
 export FINN_HOST_BUILD_DIR=/dev/shm/finn-build
 
 # Write the command line to be executed to the log
