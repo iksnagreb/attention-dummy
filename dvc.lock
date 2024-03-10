@@ -128,7 +128,7 @@ stages:
       size: 86753246
       nfiles: 861
   metrics:
-    cmd: bash run.sh python -m metrics
+    cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
@@ -163,7 +163,7 @@ stages:
       md5: fc96ab9949569c703594e0741d9acd02
       size: 72
   folding:
-    cmd: bash run.sh python -m make_folding
+    cmd: python -m make_folding
     deps:
     - path: make_folding.py
       hash: md5

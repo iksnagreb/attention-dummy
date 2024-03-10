@@ -26,7 +26,7 @@ stages:
   # Stage preparing the folding configuration
   folding:
     # Stage run the setup script as the command
-    cmd: bash run.sh python -m make_folding
+    cmd: python -m make_folding
     # Dependencies of this stage to determine when it needs to be rerun
     deps:
       # Run scripts orchestrating the script execution (potentially via sbatch)
@@ -84,7 +84,7 @@ stages:
   # Stage collecting the synthesis metrics form the build stage
   metrics:
     # Command aggregating metrics from the build output products
-    cmd: bash run.sh python -m metrics
+    cmd: python -m metrics
     # Dependencies of this stage to determine when it needs to be rerun
     deps:
       # Run scripts orchestrating the script execution (potentially via sbatch)
