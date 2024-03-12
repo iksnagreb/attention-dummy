@@ -2,28 +2,52 @@
 import yaml
 # JSON for folding configuration
 import json
+# Builtin math functions: gcd
+import math
 
 
 # Greedy factorization of the MVAU folding product to achieve the T^2 cycles per
 # sample target
-def factorize_mvau_folding_product(mvau_folding_product):
-    # Parallelization/folding cannot be negative or zero
-    if mvau_folding_product < 1:
-        # Trivial folding/parallelization: No parallelization
-        return 1, 1
+def factorize_mvau_folding_product(emb_dim, mlp_dim, seq_len):
+    # Compute the folding product constraining the parallelization of the MVAU
+    # to achieve the T^2 cycles per sample target
+    mvau_folding_product = emb_dim * mlp_dim // seq_len
+
+    # Checks whether n is a common divisor of both MVAU dimensions, i.e., input
+    # and output
+    def common_divisor(n):
+        return (emb_dim % n == 0) and (mlp_dim % n == 0)
+
+    # Common divisors of the input/output dimensions of the MVAU, these are all
+    # the candidate folding configurations
+    common_divisors = [
+        n for n in range(1, min(emb_dim, mlp_dim)) if common_divisor(n)
+    ]
     # Generate all possible SIMD-PE pairings and take the first one giving the
-    # specified product. Note that range is exclusive at the upper bound, this
-    # avoids the trivial factorization (1, mvau_folding_product)
-    for simd in range(mvau_folding_product):  # noqa
-        for pe in range(mvau_folding_product):  # noqa
+    # specified product. Only consider folding configurations from the set of
+    # common divisors here.
+    for simd in common_divisors:  # noqa
+        for pe in common_divisors:  # noqa
             # Check whether this combination is a factorization of the folding
             # product, i.e., fulfills the T^2 cycles per sample folding
             # constraint
             if simd * pe == mvau_folding_product:
                 # Exit here with the first solution
                 return simd, pe
-    # Fallback to trivial factorization if no other combinations are possible
-    return 1, mvau_folding_product
+
+    # No suitable folding configuration has been found, at this point only the
+    # trivial folding remains possible, if the folding product divides both
+    # dimensions.
+    if common_divisor(mvau_folding_product):
+        # Fallback to trivial factorization if no other combinations are
+        # possible
+        return 1, mvau_folding_product
+
+    # No factorization of the folding constraint with factors from the set of
+    # common divisors found, not even the trivial one. The best we can do now is
+    # to get as close as possible to this constraint by taking the greatest
+    # common divisor.
+    return 1, math.gcd(emb_dim, mlp_dim)
 
 
 # Generates a folding configuration for a transformer model of multiple layers
@@ -38,7 +62,7 @@ def make_folding(num_heads, num_layers, emb_dim, mlp_dim, seq_len, **_):
     # For achieving the T^2 cycles per sample target, parallelization of
     # all MVAUs must fulfill the following constraint:
     #   SIMD * PE = emb_dim * mlp_dim / seq_len
-    simd, pe = factorize_mvau_folding_product(emb_dim * mlp_dim // seq_len)
+    simd, pe = factorize_mvau_folding_product(emb_dim, mlp_dim, seq_len)
     # All operators which really need FIFO buffers are determined by the
     # attention heads, which require buffering of the whole sequence per head.
     fifo_depths = round(seq_len * emb_dim / num_heads)
