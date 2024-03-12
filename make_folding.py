@@ -7,14 +7,23 @@ import json
 # Greedy factorization of the MVAU folding product to achieve the T^2 cycles per
 # sample target
 def factorize_mvau_folding_product(mvau_folding_product):
+    # Parallelization/folding cannot be negative or zero
+    if mvau_folding_product < 1:
+        # Trivial folding/parallelization: No parallelization
+        return 1, 1
     # Generate all possible SIMD-PE pairings and take the first one giving the
     # specified product. Note that range is exclusive at the upper bound, this
     # avoids the trivial factorization (1, mvau_folding_product)
     for simd in range(mvau_folding_product):  # noqa
         for pe in range(mvau_folding_product):  # noqa
+            # Check whether this combination is a factorization of the folding
+            # product, i.e., fulfills the T^2 cycles per sample folding
+            # constraint
             if simd * pe == mvau_folding_product:
                 # Exit here with the first solution
                 return simd, pe
+    # Fallback to trivial factorization if no other combinations are possible
+    return 1, mvau_folding_product
 
 
 # Generates a folding configuration for a transformer model of multiple layers
