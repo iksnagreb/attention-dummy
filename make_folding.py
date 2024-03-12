@@ -13,6 +13,13 @@ def factorize_mvau_folding_product(emb_dim, mlp_dim, seq_len):
     # to achieve the T^2 cycles per sample target
     mvau_folding_product = emb_dim * mlp_dim // seq_len
 
+    # If the folding product is below 1, there is no need to parallelize at all,
+    # as the model is fully dominated by the sequence length, i.e., even fully
+    # sequential MVAU would still achieve the T^2 cycles per sample target
+    if mvau_folding_product <= 1:
+        # No parallelization
+        return 1, 1
+
     # Checks whether n is a common divisor of both MVAU dimensions, i.e., input
     # and output
     def common_divisor(n):
