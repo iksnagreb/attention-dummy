@@ -24,6 +24,8 @@ build:
   synth_clk_period_ns: 10.0
   # Board to target with the build
   board: "RFSoC2x2"
+  # Target shell flow: 'vivado_zynq' or 'vitis_alveo'
+  shell_flow_type: "vivado_zynq"
   # Path to folding configuration JSON file
   folding_config_file: "folding.json"
 #  # Optional: Start the build from a specific step

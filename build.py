@@ -30,8 +30,6 @@ if __name__ == "__main__":
     cfg = build_cfg.DataflowBuildConfig(
         # Unpack the build configuration parameters
         **params,
-        # This is a Zynq flow
-        shell_flow_type=build_cfg.ShellFlowType.VIVADO_ZYNQ,
         # Generate and keep the intermediate outputs including reports
         generate_outputs=[
             build_cfg.DataflowOutputType.ESTIMATE_REPORTS,

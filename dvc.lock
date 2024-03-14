@@ -48,8 +48,8 @@ stages:
       size: 27193
     - path: build.py
       hash: md5
-      md5: 025cf185c244d63570c4a9e123241ab1
-      size: 5779
+      md5: 90e8381b3fb2cbfd5e7641714ca82af8
+      size: 5688
     - path: build_steps.py
       hash: md5
       md5: 1aff560b46b8185da6aa440bf4d5c569
@@ -81,6 +81,7 @@ stages:
           output_dir: build
           synth_clk_period_ns: 10.0
           board: RFSoC2x2
+          shell_flow_type: vivado_zynq
           folding_config_file: folding.json
       folding.json:
         AddStreams_Batch_0:
@@ -136,16 +137,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 4b8cafcde60149aa59d7fc17d8910a84.dir
-      size: 86571108
+      md5: ddb16efc7f08fcb699d377183423c621.dir
+      size: 86571092
       nfiles: 814
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 4b8cafcde60149aa59d7fc17d8910a84.dir
-      size: 86571108
+      md5: ddb16efc7f08fcb699d377183423c621.dir
+      size: 86571092
       nfiles: 814
     - path: build/report/post_synth_resources.json
       hash: md5
@@ -195,6 +196,7 @@ stages:
           output_dir: build
           synth_clk_period_ns: 10.0
           board: RFSoC2x2
+          shell_flow_type: vivado_zynq
           folding_config_file: folding.json
         model:
           num_heads: 1
