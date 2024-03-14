@@ -98,10 +98,29 @@ def make_folding(num_heads, num_layers, emb_dim, mlp_dim, seq_len, **_):
             # dot-product attention and one skipping the MLP block.
             f"AddStreams_Batch_{i}": {
                 # Adding two buffered branches at the input
-                "inFIFODepths": 2 * [fifo_depths]
+                "inFIFODepths": 2 * [fifo_depths],
                 # Output buffers can have default sizes
                 # ...
+                # Parallelize along the output dimension to achieve the T^2
+                # cycles per sample target
+                #   Note: Cannot process less than 1 element
+                "PE": max(emb_dim // seq_len, 1)
             } for i in range(2 * num_layers)
+        },
+        # Residual branches contain standalone mult-thresholds which need to
+        # operate in parallel
+        **{
+            # There are two residual branches per layer: One skipping the scaled
+            # dot-product attention and one skipping the MLP block. Each has 2
+            # standalone thresholds in front of the AddStreams_Batch. There is
+            # another, final, standalone thresholds at the end of the model,
+            # preceding the classification head.
+            f"Thresholding_Batch_{i}": {
+                # Parallelize along the output dimension to achieve the T^2
+                # cycles per sample target
+                #   Note: Cannot process less than 1 element
+                "PE": max(emb_dim // seq_len, 1)
+            } for i in range(2 * 2 * num_layers + 1)
         },
         # Generate a FIFO buffer and parallelization configuration for attention
         # heads

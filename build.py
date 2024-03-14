@@ -13,6 +13,7 @@ from build_steps import (
     step_streamline_attention,
     step_streamline_residual,
     step_streamline_norms,
+    step_streamline_positional,
     step_convert_attention_to_hls,
     step_convert_residual_to_hls,
     step_replicate_streams
@@ -74,6 +75,10 @@ if __name__ == "__main__":
             # Tidy up the graph after converting from QONNX to FINN format
             # Note: Triggers a verification step
             "step_tidy_up",
+            # Positional encoding needs to be streamlined first with slightly
+            # different order of certain streamlining transformations to avoid
+            # weird rounding issue of intermediate results
+            step_streamline_positional,
             # Custom streamlining for models containing attention operators
             step_streamline_attention,
             # Streamlining of the residual branches

@@ -48,12 +48,12 @@ stages:
       size: 27193
     - path: build.py
       hash: md5
-      md5: a8768396c680fac2968cdd8962603b56
-      size: 5491
+      md5: 025cf185c244d63570c4a9e123241ab1
+      size: 5779
     - path: build_steps.py
       hash: md5
-      md5: a0408cfbaac1516d79b45e8423da42f9
-      size: 8554
+      md5: 1aff560b46b8185da6aa440bf4d5c569
+      size: 12076
     - path: inp.npy
       hash: md5
       md5: 5c2ea3078dd7b58d85d9ab424c1243cc
@@ -87,10 +87,12 @@ stages:
           inFIFODepths:
           - 256
           - 256
+          PE: 1
         AddStreams_Batch_1:
           inFIFODepths:
           - 256
           - 256
+          PE: 1
         Defaults:
           inFIFODepths:
           - - 2
@@ -121,24 +123,34 @@ stages:
           - 256
           SeqFold: 32
           EmbFold: 1
+        Thresholding_Batch_0:
+          PE: 1
+        Thresholding_Batch_1:
+          PE: 1
+        Thresholding_Batch_2:
+          PE: 1
+        Thresholding_Batch_3:
+          PE: 1
+        Thresholding_Batch_4:
+          PE: 1
     outs:
     - path: build/
       hash: md5
-      md5: 46137f7f0225f07ecf360bdc307e84f6.dir
-      size: 86753246
-      nfiles: 861
+      md5: 4b8cafcde60149aa59d7fc17d8910a84.dir
+      size: 86571108
+      nfiles: 814
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 46137f7f0225f07ecf360bdc307e84f6.dir
-      size: 86753246
-      nfiles: 861
+      md5: 4b8cafcde60149aa59d7fc17d8910a84.dir
+      size: 86571108
+      nfiles: 814
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 25648afccb8dd0e420d83f279da7ac46
-      size: 7074
+      md5: 638233abfad8d395e5439c7d8bc75ecc
+      size: 6712
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -160,15 +172,15 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: fc96ab9949569c703594e0741d9acd02
-      size: 72
+      md5: acd3a4e31c4eaa26ee3bcc3af031f876
+      size: 71
   folding:
     cmd: python -m make_folding
     deps:
     - path: make_folding.py
       hash: md5
-      md5: 0f7a1dcef3e33353ada7376ac1b83238
-      size: 6540
+      md5: d333be249c3cd087cd2b80441665c507
+      size: 7588
     - path: noctua.sh
       hash: md5
       md5: f3e8cc342b63cddcd2e07bfe63f6518c
@@ -196,5 +208,5 @@ stages:
     outs:
     - path: folding.json
       hash: md5
-      md5: 196772f35330e4b066a91c7838b9b698
-      size: 441
+      md5: 180027142b9f0317408eec3b1594a572
+      size: 634
