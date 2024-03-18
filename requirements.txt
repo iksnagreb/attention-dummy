@@ -1,4 +1,4 @@
-dvc~=3.48.1
+dvc[webdav]~=3.48.1
 torch~=1.13.1
 onnx~=1.15.0
 onnxoptimizer~=0.3.13

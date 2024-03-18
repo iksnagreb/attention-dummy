@@ -3,12 +3,9 @@ stages:
   # Stage preparing the model form the configuration
   setup:
     # Stage run the setup script as the command
-    cmd: bash run.sh python -m attention
+    cmd: python -m attention
     # Dependencies of this stage to determine when it needs to be rerun
     deps:
-      # Run scripts orchestrating the script execution (potentially via sbatch)
-      - run.sh
-      - noctua.sh
       # The script executing the stage
       - attention.py
     # Parameters used by this stage
@@ -29,9 +26,6 @@ stages:
     cmd: python -m make_folding
     # Dependencies of this stage to determine when it needs to be rerun
     deps:
-      # Run scripts orchestrating the script execution (potentially via sbatch)
-      - run.sh
-      - noctua.sh
       # The script executing the stage
       - make_folding.py
     # Parameters used by this stage
@@ -87,9 +81,6 @@ stages:
     cmd: python -m metrics
     # Dependencies of this stage to determine when it needs to be rerun
     deps:
-      # Run scripts orchestrating the script execution (potentially via sbatch)
-      - run.sh
-      - noctua.sh
       # The script executing the stage
       - metrics.py
       # The output products of the previous stage
