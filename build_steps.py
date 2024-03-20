@@ -41,7 +41,9 @@ from transformation.squeeze import Squeeze
 # Transformations involving Transpose operators
 from transformation.transpose import (
     MoveTransposePastEltwise,
-    CollapseRepeatedTranspose
+    CollapseRepeatedTranspose,
+    RestoreTransposeAfterBatchNorm,
+    CombineParallelTransposeAfterBatchNorm
 )
 # Detects the attention pattern and converts to HLS custom op
 from transformation.attention import (
@@ -64,10 +66,14 @@ from finn.builder.build_dataflow_config import (
 # FINN verification after build/graph transformation steps
 from finn.builder.build_dataflow_steps import verify_step
 
+def restore_batchnorm_transpose(model: ModelWrapper, _=None):
+    model = model.transform(RestoreTransposeAfterBatchNorm())
+    model = model.transform(CombineParallelTransposeAfterBatchNorm())
+    return model
 
 # Function running transformations necessary to clean up models containing
 # attention operators
-def step_tidy_up_pre_attention(model: ModelWrapper, _):
+def step_tidy_up_pre_attention(model: ModelWrapper, _ = None):
     # Add shape and datatype annotations throughout all the graph
     model = model.transform(InferDataTypes())  # noqa Duplicate
     model = model.transform(InferShapes())
@@ -92,7 +98,7 @@ def step_tidy_up_pre_attention(model: ModelWrapper, _):
 
 
 # Variant of streamlining transformations adapted to attention operators
-def step_streamline_attention(model: ModelWrapper, cfg: DataflowBuildConfig):
+def step_streamline_attention(model: ModelWrapper, cfg: DataflowBuildConfig = None):
     # Apply the set of standard streamlining transformations from finn to the
     # model
     model = model.transform(Streamline())
@@ -112,7 +118,7 @@ def step_streamline_attention(model: ModelWrapper, cfg: DataflowBuildConfig):
 
     # If configured, run a verification of the transformed model on some sample
     # inputs
-    if (VerificationStepType.STREAMLINED_PYTHON in
+    if cfg is not None and (VerificationStepType.STREAMLINED_PYTHON in
             cfg._resolve_verification_steps()):  # noqa
         verify_step(
             model, cfg, "streamlined_attention_python", need_parent=False
@@ -123,7 +129,7 @@ def step_streamline_attention(model: ModelWrapper, cfg: DataflowBuildConfig):
 
 
 # Streamlining transformations to be applied to residual branches
-def step_streamline_residual(model: ModelWrapper, cfg: DataflowBuildConfig):
+def step_streamline_residual(model: ModelWrapper, cfg: DataflowBuildConfig = None):
     # Streamline the residual connections by moving scale factors past
     # elementwise add nodes
     model = model.transform(MoveLinearPastEltwiseAdd())  # noqa: Duplicate
@@ -143,7 +149,7 @@ def step_streamline_residual(model: ModelWrapper, cfg: DataflowBuildConfig):
 
     # If configured, run a verification of the transformed model on some sample
     # inputs
-    if (VerificationStepType.STREAMLINED_PYTHON in
+    if cfg is not None and (VerificationStepType.STREAMLINED_PYTHON in
             cfg._resolve_verification_steps()):  # noqa
         verify_step(
             model, cfg, "streamlined_residual_python", need_parent=False
@@ -154,7 +160,7 @@ def step_streamline_residual(model: ModelWrapper, cfg: DataflowBuildConfig):
 
 
 # Streamlining transformation to be applied to the normalization layers
-def step_streamline_norms(model: ModelWrapper, cfg: DataflowBuildConfig):
+def step_streamline_norms(model: ModelWrapper, cfg: DataflowBuildConfig = None):
     # Streamline transposed batch normalization (move transposes past the
     # scale-bias operator, so they can be collapsed afterward)
     model = model.transform(MoveTransposePastEltwise())
@@ -174,7 +180,7 @@ def step_streamline_norms(model: ModelWrapper, cfg: DataflowBuildConfig):
 
     # If configured, run a verification of the transformed model on some sample
     # inputs
-    if (VerificationStepType.STREAMLINED_PYTHON in
+    if cfg is not None and (VerificationStepType.STREAMLINED_PYTHON in
             cfg._resolve_verification_steps()):  # noqa
         verify_step(model, cfg, "streamlined_norms_python", need_parent=False)
 
@@ -183,7 +189,7 @@ def step_streamline_norms(model: ModelWrapper, cfg: DataflowBuildConfig):
 
 
 # Streamlining transformation to be applied to the positional encoding layer
-def step_streamline_positional(model: ModelWrapper, cfg: DataflowBuildConfig):
+def step_streamline_positional(model: ModelWrapper, cfg: DataflowBuildConfig = None):
     # There is probably a division in front of the quantized positional
     # encoding, which is exactly the inverse of the multiplication in front of
     # that: The are the matching scale factors of the shared input quantizer of
@@ -198,7 +204,7 @@ def step_streamline_positional(model: ModelWrapper, cfg: DataflowBuildConfig):
 
     # If configured, run a verification of the transformed model on some sample
     # inputs
-    if (VerificationStepType.STREAMLINED_PYTHON in
+    if cfg is not None and (VerificationStepType.STREAMLINED_PYTHON in
             cfg._resolve_verification_steps()):  # noqa
         verify_step(
             model, cfg, "streamlined_positional_python", need_parent=False
@@ -209,7 +215,7 @@ def step_streamline_positional(model: ModelWrapper, cfg: DataflowBuildConfig):
 
 
 # Function running the InferScaledDotProductAttention transformation
-def step_convert_attention_to_hls(model: ModelWrapper, _):
+def step_convert_attention_to_hls(model: ModelWrapper, _=None):
     # Try to infer reshaping of attention heads
     model = model.transform(InferMultiHeads())  # noqa: Duplicate
     # Try to mode the mult-head splitting past the multi thresholds
@@ -231,20 +237,20 @@ def step_convert_attention_to_hls(model: ModelWrapper, _):
 
 # Function running the transformations to convert residual branches to HLS
 # layers, in particular     model = model.transform(InferAddStreamsLayer())
-def step_convert_residual_to_hls(model: ModelWrapper, _):
+def step_convert_residual_to_hls(model: ModelWrapper, _=None):
     # Convert elementwise add operations to streamed adding
     return model.transform(InferAddStreamsLayer())
 
 
 # Function running the InferReplicateStream transformation
-def step_replicate_streams(model: ModelWrapper, _):
+def step_replicate_streams(model: ModelWrapper, _=None):
     # Properly replicate the stream feeding the query, key and value projections
     return model.transform(InferReplicateStream())
 
 
 # Post-processing tidy-up squeezing dimensions and identity operators left over
 # from mapping the attention operators
-def step_tidy_up_post_attention(model: ModelWrapper, _):
+def step_tidy_up_post_attention(model: ModelWrapper, _=None):
     # Remove dimensions of size 1 (single batch tensors)
     model = model.transform(Squeeze())
     model = model.transform(RemoveIdentityTranspose())

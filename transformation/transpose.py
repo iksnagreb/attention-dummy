@@ -10,7 +10,8 @@ from qonnx.transformation.infer_shapes import InferShapes
 from qonnx.util.basic import get_by_name
 # QONNX graph transformation base class
 from qonnx.transformation.base import Transformation
-
+# for warnings
+import warnings
 
 # Collapses repeated transpose operations into a single transpose operation
 # having the same effect
@@ -85,6 +86,181 @@ class CollapseRepeatedTranspose(Transformation):
                 graph.node.remove(successor)
                 # Track whether the graph has been modified, never resets to
                 # False
+                graph_modified = True
+        # Need to redo the shape inference after potentially removing nodes
+        model = model.transform(InferShapes())  # noqa: Shadows model
+        # Return the transformed model and indicate whether the graph actually
+        # has been transformed
+        return model, graph_modified
+
+
+# qonnx auto merges consecutive transpose operations. This prevents some Streamling for Transposed BatchNorm later on.
+# Here we try to fix this by detecting: 
+# Transpose -> BatchNorm -> Something that is Transpose but differse in shape compared to the first Transpose
+class RestoreTransposeAfterBatchNorm(Transformation):
+    # Applies the transform to a whole model graph
+    def apply(self, model: ModelWrapper):  # noqa
+        # Get the model graph out of the model wrapper object
+        graph = model.graph
+        # Keep track of whether the graph has been modified
+        graph_modified = False
+        # Iterate all nodes in the graph keeping track of the index
+        for index, node in enumerate(graph.node):
+            # Applies to Transpose operation types
+            if node.op_type == "Transpose":
+                # Currently we dont care about joins or forks transpose only has one input
+                predecessor = model.find_direct_predecessors(node)[0]
+                
+                # there might be no predecessor on the first node in the graph
+                if predecessor is None or predecessor.op_type != "BatchNormalization":
+                    # skip all non BatchNorms
+                    continue
+                
+                # Get the permutation indices of the first transpose
+                perm_this = get_by_name(node.attribute, "perm")
+                # Convert permutation indices to list of integers
+                perm_this = perm_this.ints if perm_this is not None else None
+                if perm_this is None:
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping tranpose restore: "
+                        f"no permutation found for node {predecessor_predecessor}"
+                    )
+                    continue
+
+                # BatchNorm only has one input
+                predecessor_predecessor = model.find_direct_predecessors(predecessor)[0]
+                
+                if predecessor_predecessor is None or predecessor_predecessor.op_type != "Transpose":
+                    # Softly skip this node
+                    continue
+                
+                # Get the permutation indices of the second transpose
+                perm_before = get_by_name(predecessor_predecessor.attribute, "perm")
+                # Convert permutation indices to list of integers
+                perm_before = perm_before.ints if perm_before is not None else None
+                if perm_before is None:
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping tranpose restore: "
+                        f"no permutation found for node {predecessor_predecessor}"
+                    )
+                    continue
+
+                if perm_before == perm_this:
+                    # skip transposes that are equal already
+                    continue               
+                
+                # apply permutation 'perm_before' to 'perm_this' and create a new array
+                new_perm_this_node =  [perm_before[i] for i in perm_this]
+
+                # new transpose to fit in between BN and new this node
+                proper_name = "/".join(predecessor.name.split('/')[:-1])
+                proper_name += "/restored_bn_transpose"
+                restored_transpose = oh.make_node(
+                    name=proper_name,
+                    op_type=node.op_type, # this is also a Transpose
+                    outputs=[proper_name + "_output_0"],
+                    inputs=predecessor.output,
+                    perm=perm_before,
+                )
+                graph.node.insert(index, restored_transpose)
+
+                # replacement for this node and remove old node  
+                new_this_node = oh.make_node(
+                    op_type=node.op_type,
+                    inputs=restored_transpose.output,
+                    outputs=node.output,
+                    name=node.name,
+                    perm=new_perm_this_node
+                )
+                graph.node.remove(node)
+                graph.node.insert(index+1, new_this_node)
+                
+                graph_modified = True
+        # Need to redo the shape inference after potentially removing nodes
+        model = model.transform(InferShapes())  # noqa: Shadows model
+        # Return the transformed model and indicate whether the graph actually
+        # has been transformed
+        return model, graph_modified
+
+
+# Follow up to RestoreTransposeAfterBatchNorm.
+# Finds duplicate parralel Transposes after BatchNorm and combines them to one common fork node.
+class CombineParallelTransposeAfterBatchNorm(Transformation):
+    # Applies the transform to a whole model graph
+    def apply(self, model: ModelWrapper):  # noqa
+        # Get the model graph out of the model wrapper object
+        graph = model.graph
+        # Keep track of whether the graph has been modified
+        graph_modified = False
+        # Iterate all nodes in the graph keeping track of the index
+        for index, node in enumerate(graph.node):
+            # Applies to Transpose operation types
+            if node.op_type == "BatchNormalization":
+                # has to be fork node 
+                if not model.is_fork_node(node):
+                    continue
+                # Bn only has one input
+                predecessor = model.find_direct_predecessors(node)[0]
+                # skip BatchNormalization where we dont have a Transpose in front
+                if predecessor is None or predecessor.op_type != "Transpose":
+                    continue
+
+                 # Get the permutation indices of the first transpose
+                perms = get_by_name(predecessor.attribute, "perm")
+                # Convert permutation indices to list of integers
+                perms = perms.ints if perms is not None else None
+                if perms is None:
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping tranpose combine: "
+                        f"no permutation found for node {predecessor}"
+                    )
+
+                # gather Transposes
+                successors = model.find_direct_successors(node)
+                # skip if there is only one successor after this
+                if successors is None or len(successors) <= 1:
+                    continue
+                
+                # search successors for Transpose and check perm shapes
+                succs_to_combine = []
+                for succ in successors:                    
+                    if succ.op_type == "Transpose":
+                        succ_perms = get_by_name(predecessor.attribute, "perm")
+                        succ_perms = succ_perms.ints if succ_perms is not None else None
+                        if succ_perms is None:
+                            warnings.warn(
+                                f"{self.__class__.__name__}: Skipping tranpose combine for successor node: "
+                                f"no permutation found for node {succ}"
+                            )
+                        if succ_perms == perms: 
+                            succs_to_combine.append(succ)
+                        
+                # gather successors of successors for which we need to change inputs
+                next_nodes = []
+                for succ in succs_to_combine:
+                    next_nodes += model.find_direct_successors(succ)
+
+                # replacement for all transpose nodes
+                proper_name = "/".join(node.name.split('/')[:-1])
+                proper_name += "/combined_bn_transpose"
+                new_node = oh.make_node(
+                    op_type="Transpose",
+                    inputs=node.output,
+                    outputs=[proper_name + "_output_0"],
+                    name=proper_name,
+                    perm=perms
+                )
+
+                # rmeove old nodes and add the new
+                for succ in succs_to_combine:
+                    graph.node.remove(succ)
+
+                graph.node.insert(index+1, new_node)
+                
+                # set inputs for succ_succ to output of new node
+                for n in next_nodes:
+                    n.input[0] = new_node.output[0]
+                
                 graph_modified = True
         # Need to redo the shape inference after potentially removing nodes
         model = model.transform(InferShapes())  # noqa: Shadows model
