@@ -16,7 +16,8 @@ from build_steps import (
     step_streamline_positional,
     step_convert_attention_to_hls,
     step_convert_residual_to_hls,
-    step_replicate_streams
+    step_replicate_streams,
+    step_restore_batchnorm_transpose
 )
 
 # Script entrypoint
@@ -67,6 +68,7 @@ if __name__ == "__main__":
         steps=[
             # Need to apply some tidy-up transformations before converting to
             # the finn dialect of onnx
+            step_restore_batchnorm_transpose,
             step_tidy_up_pre_attention,
             # Convert all QONNX Quant nodes to Multithreshold nodes
             "step_qonnx_to_finn",

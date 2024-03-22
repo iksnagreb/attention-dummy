@@ -1,4 +1,5 @@
 # QONNX wrapper of ONNX model graphs
+from finn.builder.build_dataflow_steps import step_convert_to_hls, step_tidy_up
 from qonnx.core.modelwrapper import ModelWrapper
 # QONNX graph transformations for renaming and cleaning up
 from qonnx.transformation.general import (
@@ -36,14 +37,33 @@ from build_steps import (
     step_streamline_residual, 
     step_streamline_positional, 
     step_tidy_up_post_attention,
-    restore_batchnorm_transpose,
+    step_restore_batchnorm_transpose,
 )
+
+from transformation.transpose import (
+    MoveTransposePastEltwise,
+    CollapseRepeatedTranspose,
+    RestoreTransposeAfterBatchNorm,
+    CombineParallelTransposeAfterBatchNorm
+)
+
+import sys
+import re
 
 # Script entrypoint
 if __name__ == '__main__':
+    in_file = sys.argv[1] 
+    # assume file ends with .onnx
+    out_file_prefix = in_file[:-5]
+    file_ending = ".onnx"
+
     # Load the model graph
-    model = ModelWrapper("attention.onnx")
-    model = restore_batchnorm_transpose(model)
+    model = ModelWrapper(in_file)
+    model = step_restore_batchnorm_transpose(model)
+    #model = model.transform(RestoreTransposeAfterBatchNorm())
+    #model = model.transform(CombineParallelTransposeAfterBatchNorm())
+
+    model = step_tidy_up(model)
     model = step_tidy_up_pre_attention(model)
     # Convert from QONNX graph to FINN nodes/operators
     #   Note: In particular, this converts Quanto nodes to MultiThreshold
@@ -56,5 +76,8 @@ if __name__ == '__main__':
     model = model.transform(Streamline())
     model = step_convert_attention_to_hls(model)
     model = step_tidy_up_post_attention(model)
+    # model = step_convert_to_hls(model)
+    
+    model = model.transform(Streamline())
     # Save the transformed graph
-    model.save("attention.inferred.onnx")
+    model.save(out_file_prefix + ".finn" + file_ending)

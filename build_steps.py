@@ -66,7 +66,9 @@ from finn.builder.build_dataflow_config import (
 # FINN verification after build/graph transformation steps
 from finn.builder.build_dataflow_steps import verify_step
 
-def restore_batchnorm_transpose(model: ModelWrapper, _=None):
+
+# restore transpose fater batchnorm incase qonnx got this removed during export
+def step_restore_batchnorm_transpose(model: ModelWrapper, _=None):
     model = model.transform(RestoreTransposeAfterBatchNorm())
     model = model.transform(CombineParallelTransposeAfterBatchNorm())
     return model
