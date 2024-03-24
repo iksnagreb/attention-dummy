@@ -23,6 +23,7 @@ from finn.transformation.streamline.absorb import AbsorbAddIntoMultiThreshold
 from finn.transformation.streamline.reorder import (
     MoveMulPastFork,
     MoveLinearPastFork,
+    MoveTransposePastFork,
     MoveLinearPastEltwiseAdd,
     MoveScalarLinearPastInvariants
 )
@@ -163,6 +164,22 @@ def step_streamline_norms(model: ModelWrapper, cfg: DataflowBuildConfig):
     # The transposes around the batch normalization should be collapsed by now
     # and cancel each other out
     model = model.transform(RemoveIdentityTranspose())
+    # We now might have transpose operations accumulating in front of fork nodes
+    model = model.transform(MoveTransposePastFork())
+    model = model.transform(MoveTransposePastEltwise())
+    model = model.transform(CollapseRepeatedTranspose())
+    model = model.transform(RemoveIdentityTranspose())
+    # This needs to be done twice, as per block there is one fork to the
+    # residual branch and one fork into the queries, keys and values input.
+    model = model.transform(MoveTransposePastFork())
+    model = model.transform(MoveTransposePastEltwise())
+    model = model.transform(CollapseRepeatedTranspose())
+    model = model.transform(RemoveIdentityTranspose())
+    # This might have caused the normalization scale and bias to accumulate in
+    # front of transpose or fork node
+    model = model.transform(MoveLinearPastEltwiseAdd())  # noqa: Duplicate
+    model = model.transform(MoveLinearPastFork())
+    model = model.transform(MoveScalarLinearPastInvariants())
     # This might have enabled more streamlining transformations
     model = model.transform(Streamline())
     # We need a custom streamlining step to enable streamlining through certain
