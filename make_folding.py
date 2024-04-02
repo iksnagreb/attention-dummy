@@ -70,9 +70,6 @@ def make_folding(num_heads, num_layers, emb_dim, mlp_dim, seq_len, **_):
     # all MVAUs must fulfill the following constraint:
     #   SIMD * PE = emb_dim * mlp_dim / seq_len
     simd, pe = factorize_mvau_folding_product(emb_dim, mlp_dim, seq_len)
-    # All operators which really need FIFO buffers are determined by the
-    # attention heads, which require buffering of the whole sequence per head.
-    fifo_depths = round(seq_len * emb_dim / num_heads)
     # Start filling the folding configuration with defaults applied to all
     # operators
     folding = {  # noqa: Shadows outer scope
@@ -89,7 +86,7 @@ def make_folding(num_heads, num_layers, emb_dim, mlp_dim, seq_len, **_):
             "SIMD": [simd, ["MatrixVectorActivation"]],
             "PE": [pe, ["MatrixVectorActivation"]],
             # Implement memory for FIFO buffers and MVAU weights in BRAM
-            "ram_style": ["block", ["StreamingFIFO", "MatrixVectorActivation"]]
+            "ram_style": ["auto", ["StreamingFIFO", "MatrixVectorActivation"]]
         },
         # Residual branches need buffering before merging them again to avoid
         # deadlock.
@@ -97,8 +94,9 @@ def make_folding(num_heads, num_layers, emb_dim, mlp_dim, seq_len, **_):
             # There are two residual branches per layer: One skipping the scaled
             # dot-product attention and one skipping the MLP block.
             f"AddStreams_Batch_{i}": {
-                # Adding two buffered branches at the input
-                "inFIFODepths": 2 * [fifo_depths],
+                # Adding two buffered branches at the input, need to buffer the
+                # number of cycles of the main branch, i.e., T^2
+                "inFIFODepths": 2 * [seq_len ** 2],
                 # Output buffers can have default sizes
                 # ...
                 # Parallelize along the output dimension to achieve the T^2
@@ -120,7 +118,7 @@ def make_folding(num_heads, num_layers, emb_dim, mlp_dim, seq_len, **_):
                 # cycles per sample target
                 #   Note: Cannot process less than 1 element
                 "PE": max(emb_dim // seq_len, 1)
-            } for i in range(2 * 2 * num_layers + 1)
+            } for i in range(2 * 4 * num_layers + 1)
         },
         # Generate a FIFO buffer and parallelization configuration for attention
         # heads
@@ -129,7 +127,7 @@ def make_folding(num_heads, num_layers, emb_dim, mlp_dim, seq_len, **_):
             f"ScaledDotProductAttention_{i}": {
                 # Three buffered input streams to each attention head:
                 #   queries, keys and values
-                "inFIFODepths": 3 * [fifo_depths],
+                "inFIFODepths": 3 * [seq_len],
                 # Output buffers can have default sizes
                 # ...
                 # No parallelization along the sequence axis,
