@@ -31,8 +31,8 @@ from finn.transformation.streamline.reorder import (
 from finn.transformation.streamline.collapse_repeated import (
     CollapseRepeatedMul
 )
-# FINN transformation converting ONNX nodes to HLS custom operators
-from finn.transformation.fpgadataflow.convert_to_hls_layers import (
+# FINN transformation converting ONNX nodes to hardware custom operators
+from finn.transformation.fpgadataflow.convert_to_hw_layers import (
     InferAddStreamsLayer
 )
 # Remove some operations without real effect

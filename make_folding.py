@@ -83,17 +83,19 @@ def make_folding(num_heads, num_layers, emb_dim, mlp_dim, seq_len, **_):
             "outFIFODepths": [max_inputs_outputs_per_op * [2], "all"],
             # Set the parallelism of all MVAUs to meet the T^2 cycles per sample
             # target as computed above.
-            "SIMD": [simd, ["MatrixVectorActivation"]],
-            "PE": [pe, ["MatrixVectorActivation"]],
+            "SIMD": [simd, ["MVAU_hls", "MVAU_rtl"]],
+            "PE": [pe, ["MVAU_hls", "MVAU_rtl"]],
             # Implement memory for FIFO buffers and MVAU weights in BRAM
-            "ram_style": ["auto", ["StreamingFIFO", "MatrixVectorActivation"]]
+            "ram_style": ["auto", [
+                "StreamingFIFO_hls", "StreamingFIFO_rtl", "MVAU_hls", "MVAU_rtl"
+            ]]
         },
         # Residual branches need buffering before merging them again to avoid
         # deadlock.
         **{
             # There are two residual branches per layer: One skipping the scaled
             # dot-product attention and one skipping the MLP block.
-            f"AddStreams_Batch_{i}": {
+            f"AddStreams_hls_{i}": {
                 # Adding two buffered branches at the input, need to buffer the
                 # number of cycles of the main branch, i.e., T^2
                 "inFIFODepths": 2 * [seq_len ** 2],
@@ -113,7 +115,7 @@ def make_folding(num_heads, num_layers, emb_dim, mlp_dim, seq_len, **_):
             # standalone thresholds in front of the AddStreams_Batch. There is
             # another, final, standalone thresholds at the end of the model,
             # preceding the classification head.
-            f"Thresholding_Batch_{i}": {
+            f"Thresholding_rtl_{i}": {
                 # Parallelize along the output dimension to achieve the T^2
                 # cycles per sample target
                 #   Note: Cannot process less than 1 element
@@ -124,7 +126,7 @@ def make_folding(num_heads, num_layers, emb_dim, mlp_dim, seq_len, **_):
         # heads
         **{
             # There are num_heads attention heads per layer of the transformer
-            f"ScaledDotProductAttention_{i}": {
+            f"ScaledDotProductAttention_hls_{i}": {
                 # Three buffered input streams to each attention head:
                 #   queries, keys and values
                 "inFIFODepths": 3 * [seq_len],

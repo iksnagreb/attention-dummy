@@ -91,14 +91,16 @@ if __name__ == "__main__":
             # Another tidy-up step to remove unnecessary dimensions and
             # operations after converting the attention operators to HLS
             step_tidy_up_post_attention,
-            # Convert most other layers supported by FINN to HLS operators
-            "step_convert_to_hls",
             # Converting the elementwise addition of residual branches is not
             # done by FINN by default
             step_convert_residual_to_hls,
             # Properly replicate the stream feeding the query, key and value
             # projections
             step_replicate_streams,
+            # Convert most other layers supported by FINN to HW operators
+            "step_convert_to_hw",
+            # Specialize HW layer implementations as either HLS or RTL
+            "step_specialize_layers",
             # From here on it is basically the default flow...
             "step_create_dataflow_partition",
             "step_target_fps_parallelization",
@@ -108,8 +110,8 @@ if __name__ == "__main__":
             # The ScaledDotProductAttention custom op does not define any
             # estimates
             "step_generate_estimate_reports",
-            "step_hls_codegen",
-            "step_hls_ipgen",
+            "step_hw_codegen",
+            "step_hw_ipgen",
             "step_set_fifo_depths",
             "step_create_stitched_ip",
             # Attention does currently not support RTL simulation due to missing

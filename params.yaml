@@ -28,6 +28,11 @@ build:
   shell_flow_type: "vivado_zynq"
   # Path to folding configuration JSON file
   folding_config_file: "folding.json"
+  # Path to layer implementation style specialization config
+  specialize_layers_config_file: "specialize_layers.json"
+  # Force the implementation of standalone thresholds to be able to use RTL
+  # implementation of the MVU
+  standalone_thresholds: True
 #  # Optional: Start the build from a specific step
 #  start_step: "step_tidy_up_pre_attention"
 #  # Optional: Stop the build after a specific step

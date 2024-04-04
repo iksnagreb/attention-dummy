@@ -21,34 +21,34 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: 2d5d466fe9cd1496e9b35894daab0ba2
+      md5: 3faae6c41bdccb73a5efbb03fd8d8830
       size: 27193
     - path: inp.npy
       hash: md5
-      md5: 38a0ac3209a2eb95ce43223241e71566
+      md5: 2cadcbbc9641db1a0eff27bce5d85015
       size: 1152
     - path: out.npy
       hash: md5
-      md5: e328a78ca298174eca2c39139fa4b389
+      md5: 3229f942c61626d1dbdae846bd260b21
       size: 1152
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
     deps:
     - path: attention.onnx
       hash: md5
-      md5: 2d5d466fe9cd1496e9b35894daab0ba2
+      md5: 3faae6c41bdccb73a5efbb03fd8d8830
       size: 27193
     - path: build.py
       hash: md5
-      md5: 90e8381b3fb2cbfd5e7641714ca82af8
-      size: 5688
+      md5: 6e11e7eec6dac707b1c29d45ddad5a84
+      size: 5793
     - path: build_steps.py
       hash: md5
-      md5: 4ce07c4bbb0c89c6d41dd88475b170ce
-      size: 13079
+      md5: e2b3f904510d73d5996d5d9aec135c6a
+      size: 13083
     - path: inp.npy
       hash: md5
-      md5: 38a0ac3209a2eb95ce43223241e71566
+      md5: 2cadcbbc9641db1a0eff27bce5d85015
       size: 1152
     - path: noctua.sh
       hash: md5
@@ -56,7 +56,7 @@ stages:
       size: 1832
     - path: out.npy
       hash: md5
-      md5: e328a78ca298174eca2c39139fa4b389
+      md5: 3229f942c61626d1dbdae846bd260b21
       size: 1152
     - path: run.sh
       hash: md5
@@ -75,13 +75,15 @@ stages:
           board: RFSoC2x2
           shell_flow_type: vivado_zynq
           folding_config_file: folding.json
+          specialize_layers_config_file: specialize_layers.json
+          standalone_thresholds: true
       folding.json:
-        AddStreams_Batch_0:
+        AddStreams_hls_0:
           inFIFODepths:
           - 1024
           - 1024
           PE: 1
-        AddStreams_Batch_1:
+        AddStreams_hls_1:
           inFIFODepths:
           - 1024
           - 1024
@@ -101,57 +103,61 @@ stages:
           - all
           SIMD:
           - 2
-          - - MatrixVectorActivation
+          - - MVAU_hls
+            - MVAU_rtl
           PE:
           - 4
-          - - MatrixVectorActivation
+          - - MVAU_hls
+            - MVAU_rtl
           ram_style:
           - auto
-          - - StreamingFIFO
-            - MatrixVectorActivation
-        ScaledDotProductAttention_0:
+          - - StreamingFIFO_hls
+            - StreamingFIFO_rtl
+            - MVAU_hls
+            - MVAU_rtl
+        ScaledDotProductAttention_hls_0:
           inFIFODepths:
           - 32
           - 32
           - 32
           SeqFold: 32
           EmbFold: 1
-        Thresholding_Batch_0:
+        Thresholding_rtl_0:
           PE: 1
-        Thresholding_Batch_1:
+        Thresholding_rtl_1:
           PE: 1
-        Thresholding_Batch_2:
+        Thresholding_rtl_2:
           PE: 1
-        Thresholding_Batch_3:
+        Thresholding_rtl_3:
           PE: 1
-        Thresholding_Batch_4:
+        Thresholding_rtl_4:
           PE: 1
-        Thresholding_Batch_5:
+        Thresholding_rtl_5:
           PE: 1
-        Thresholding_Batch_6:
+        Thresholding_rtl_6:
           PE: 1
-        Thresholding_Batch_7:
+        Thresholding_rtl_7:
           PE: 1
-        Thresholding_Batch_8:
+        Thresholding_rtl_8:
           PE: 1
     outs:
     - path: build/
       hash: md5
-      md5: ec5017356c31061cae21906986aecccd.dir
-      size: 86482382
-      nfiles: 814
+      md5: 5c61ad912e76cab3b08315359ba9f08a.dir
+      size: 93148038
+      nfiles: 989
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: ec5017356c31061cae21906986aecccd.dir
-      size: 86482382
-      nfiles: 814
+      md5: 5c61ad912e76cab3b08315359ba9f08a.dir
+      size: 93148038
+      nfiles: 989
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 4cdd8edf2e39f187a04f1fda0242c4fc
-      size: 6713
+      md5: 7434fd4d3735f1e0fa2c887ac3db9585
+      size: 14188
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -165,15 +171,15 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 2b89ce7df64e448b411e549ab532c515
+      md5: 0d783eae64baee9919324428d9463a4c
       size: 71
   folding:
     cmd: python -m make_folding
     deps:
     - path: make_folding.py
       hash: md5
-      md5: 10273380c0c14534e811790d6aafb882
-      size: 7462
+      md5: 7139b86d69d13939760fe7e4005c964b
+      size: 7511
     params:
       params.yaml:
         build:
@@ -182,6 +188,8 @@ stages:
           board: RFSoC2x2
           shell_flow_type: vivado_zynq
           folding_config_file: folding.json
+          specialize_layers_config_file: specialize_layers.json
+          standalone_thresholds: true
         model:
           num_heads: 1
           num_layers: 1
@@ -194,5 +202,5 @@ stages:
     outs:
     - path: folding.json
       hash: md5
-      md5: ce04f9d1e7ce0210266af92fee826b23
-      size: 774
+      md5: f9586c39e33cbafc4a0ed4ce47e39d02
+      size: 775
