@@ -56,8 +56,11 @@ class InferReplicateStream(Transformation):
                     # The operator needs to now the number of replicas as an
                     # attribute
                     num=len(replicas),
-                    # Number of input elements received in parallel
+                    # Number of input elements in the last dimension
                     num_elems=out_shape[-1],
+                    # Number of elements to process in parallel: default fully
+                    # sequential
+                    PE=1,
                     # Number of inputs to be processed sequentially
                     num_inputs=out_shape[:-1],
                     # Infer the datatype from the original output
