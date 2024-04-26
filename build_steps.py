@@ -25,39 +25,41 @@ from finn.transformation.streamline.reorder import (
     MoveLinearPastFork,
     MoveTransposePastFork,
     MoveLinearPastEltwiseAdd,
-    MoveScalarLinearPastInvariants
+    MoveScalarLinearPastInvariants,
+    MoveTransposePastEltwise,
 )
 # Collapse consecutive operations of the same type
 from finn.transformation.streamline.collapse_repeated import (
-    CollapseRepeatedMul
+    CollapseRepeatedMul,
+    CollapseRepeatedTranspose
 )
 # FINN transformation converting ONNX nodes to hardware custom operators
 from finn.transformation.fpgadataflow.convert_to_hw_layers import (
     InferAddStreamsLayer
 )
 # Remove some operations without real effect
-from transformation.remove import RemoveIdentityTranspose, RemoveIdentityReshape
-# Cleanup transformations
-from transformation.squeeze import Squeeze
-# Transformations involving Transpose operators
-from transformation.transpose import (
-    MoveTransposePastEltwise,
-    CollapseRepeatedTranspose
+from finn.transformation.streamline.remove import (
+    RemoveIdentityTranspose,
+    RemoveIdentityReshape
 )
+# Cleanup transformation getting rid of 3d data layout
+from finn.transformation.squeeze import Squeeze
 # Detects the attention pattern and converts to HLS custom op
-from transformation.attention import (
+from finn.transformation.fpgadataflow.attention import (
     InferScaledDotProductAttention,
     AbsorbMultiThresholdIntoScaledDotProductAttention
 )
 # Mult-Head Attention support
-from transformation.attention_heads import (
+from finn.transformation.fpgadataflow.attention_heads import (
     InferMultiHeads,
     MoveSplitMultiHeadsPastMultiThreshold,
     UnrollMultiHeadAttention,
     MoveMergeMultiHeadsPastMultiThreshold
 )
 # Stream replication for outputs with multiple consumers
-from transformation.replicate_stream import InferReplicateStream
+from finn.transformation.fpgadataflow.replicate_stream import (
+    InferReplicateStream
+)
 # FINN dataflow builder configuration
 from finn.builder.build_dataflow_config import (
     VerificationStepType, DataflowBuildConfig

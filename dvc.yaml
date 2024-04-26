@@ -55,8 +55,6 @@ stages:
       - build.py
       # The custom build steps implemented in this package
       - build_steps.py
-      # Custom graph transformations implemented in this package
-      - transformation/
       # The model export produced by the setup stage: This triggers rerunning
       # this stage when the model configuration changes
       - attention.onnx
