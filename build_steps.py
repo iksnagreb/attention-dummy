@@ -35,7 +35,7 @@ from finn.transformation.streamline.collapse_repeated import (
 )
 # FINN transformation converting ONNX nodes to hardware custom operators
 from finn.transformation.fpgadataflow.convert_to_hw_layers import (
-    InferAddStreamsLayer
+    InferElementwiseBinaryOperation
 )
 # Remove some operations without real effect
 from finn.transformation.streamline.remove import (
@@ -44,7 +44,7 @@ from finn.transformation.streamline.remove import (
 )
 # Cleanup transformation getting rid of 3d data layout
 from finn.transformation.squeeze import Squeeze
-# Detects the attention pattern and converts to HLS custom op
+# Detects the attention pattern and converts to hardware custom op
 from finn.transformation.fpgadataflow.attention import (
     InferScaledDotProductAttention,
     AbsorbMultiThresholdIntoScaledDotProductAttention
@@ -228,7 +228,7 @@ def step_streamline_positional(model: ModelWrapper, cfg: DataflowBuildConfig):
 
 
 # Function running the InferScaledDotProductAttention transformation
-def step_convert_attention_to_hls(model: ModelWrapper, _):
+def step_convert_attention_to_hw(model: ModelWrapper, _):
     # Try to infer reshaping of attention heads
     model = model.transform(InferMultiHeads())  # noqa: Duplicate
     # Try to mode the mult-head splitting past the multi thresholds
@@ -244,15 +244,19 @@ def step_convert_attention_to_hls(model: ModelWrapper, _):
     model = model.transform(MoveMergeMultiHeadsPastMultiThreshold())
     # If applicable, absorb the final thresholds into the attention operator
     model = model.transform(AbsorbMultiThresholdIntoScaledDotProductAttention())
-    # Return the model with attention and multi-heads mapped to hls operators
+    # Return the model with attention and multi-heads mapped to hardware
+    # operators
     return model
 
 
-# Function running the transformations to convert residual branches to HLS
-# layers, in particular     model = model.transform(InferAddStreamsLayer())
-def step_convert_residual_to_hls(model: ModelWrapper, _):
-    # Convert elementwise add operations to streamed adding
-    return model.transform(InferAddStreamsLayer())
+# Function running the transformations to convert elementwise binary operations
+# to their hardware implementations
+def step_convert_elementwise_binary_to_hw(model: ModelWrapper, _):
+    # Convert elementwise operations to hardware operators
+    #   Note: Do not convert the final Mul operator at the output
+    return model.transform(InferElementwiseBinaryOperation(
+        InferElementwiseBinaryOperation.reject_output_dequant
+    ))
 
 
 # Function running the InferReplicateStream transformation

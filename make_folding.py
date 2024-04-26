@@ -94,18 +94,21 @@ def make_folding(num_heads, num_layers, emb_dim, mlp_dim, seq_len, **_):
         # deadlock.
         **{
             # There are two residual branches per layer: One skipping the scaled
-            # dot-product attention and one skipping the MLP block.
-            f"AddStreams_hls_{i}": {
+            # dot-product attention and one skipping the MLP block. There is
+            # also one positional encoding at the input.
+            f"ElementwiseAdd_hls_{i}": {
                 # Adding two buffered branches at the input, need to buffer the
                 # number of cycles of the main branch, i.e., T^2
-                "inFIFODepths": 2 * [seq_len ** 2],
+                # Adding the positional encoding needs to be parallelized but
+                # does not require extra buffering (default to depth 2 FIFOs).
+                "inFIFODepths": 2 * [seq_len ** 2 if i != 0 else 2],
                 # Output buffers can have default sizes
                 # ...
                 # Parallelize along the output dimension to achieve the T^2
                 # cycles per sample target
                 #   Note: Cannot process less than 1 element
                 "PE": max(emb_dim // seq_len, 1)
-            } for i in range(2 * num_layers)
+            } for i in range(2 * num_layers + 1)
         },
         # Residual branches contain standalone mult-thresholds which need to
         # operate in parallel
