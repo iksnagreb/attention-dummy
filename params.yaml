@@ -1,3 +1,5 @@
+# Global seed to make evaluation reproducible
+seed: 12
 # Model configuration section
 model:
   # Number of attention heads
@@ -14,8 +16,17 @@ model:
   seq_len: 32
   # Number of bits to use for quantized representation
   bits: 4
+  # Type of normalization layer to use in the transformer blocks
+  #   Options are: layer-norm, batch-norm and none
+  norm: none
   # Type of attention mask to use: 'none', 'causal' or 'const'
-  mask: 'none'
+  mask: none
+# Model to ONNX export hyperparameters
+export:
+  # Version of the default ONNX opset
+  opset_version: 14
+  # Apply the constant-folding optimization
+  do_constant_folding: true
 # FINN build configuration
 build:
   # Directory to store the build outputs
