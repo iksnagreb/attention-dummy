@@ -110,20 +110,20 @@ def make_folding(num_heads, num_layers, emb_dim, mlp_dim, seq_len, **_):
                 "PE": max(emb_dim // seq_len, 1)
             } for i in range(2 * num_layers + 1)
         },
-        # Residual branches contain standalone mult-thresholds which need to
-        # operate in parallel
+        # Thresholding layer might need to operate in parallel to achieve the
+        # target of T^2 cycles per sample
         **{
-            # There are two residual branches per layer: One skipping the scaled
-            # dot-product attention and one skipping the MLP block. Each has 2
-            # standalone thresholds in front of the AddStreams_Batch. There is
-            # another, final, standalone thresholds at the end of the model,
-            # preceding the classification head.
+            # Each "layer" of the transformer contains 10 standalone
+            # thresholding layers.
+            # In total, these are num_layers * 10 standalone thresholding
+            # layers, which are all, according to the preferred_impl_style,
+            # implemented as RTL backend components.
             f"Thresholding_rtl_{i}": {
                 # Parallelize along the output dimension to achieve the T^2
                 # cycles per sample target
                 #   Note: Cannot process less than 1 element
                 "PE": max(emb_dim // seq_len, 1)
-            } for i in range(2 * 4 * num_layers + 1)
+            } for i in range(num_layers * 10)
         },
         # Generate a FIFO buffer and parallelization configuration for attention
         # heads

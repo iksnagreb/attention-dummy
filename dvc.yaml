@@ -72,6 +72,9 @@ stages:
       # Folding configurations specifying parallelization and FIFO sizes for the
       # layers/operators
       - ${build.folding_config_file}:
+      # Configuration file specifying the preferred implementation style of
+      # custom operators
+      - ${build.specialize_layers_config_file}:
     # Outputs produced by this stage which should be tracked and passed on to
     # the next stage
     outs:

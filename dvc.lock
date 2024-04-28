@@ -149,19 +149,29 @@ stages:
           PE: 1
         Thresholding_rtl_8:
           PE: 1
+        Thresholding_rtl_9:
+          PE: 1
+      specialize_layers.json:
+        '':
+          preferred_impl_style: ''
+        Defaults:
+          preferred_impl_style:
+          - rtl
+          - - MVAU
+            - Thresholding
     outs:
     - path: build/
       hash: md5
-      md5: 6e8fc78f4d4cc74c9081f964bfd6bc06.dir
-      size: 93673451
+      md5: 14ed038f82a427b348eea18da937fb56.dir
+      size: 93672912
       nfiles: 1019
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 6e8fc78f4d4cc74c9081f964bfd6bc06.dir
-      size: 93673451
+      md5: 14ed038f82a427b348eea18da937fb56.dir
+      size: 93672912
       nfiles: 1019
     - path: build/report/post_synth_resources.json
       hash: md5
@@ -187,8 +197,8 @@ stages:
     deps:
     - path: make_folding.py
       hash: md5
-      md5: d61b5e9c2b4870ff0f8c9a87864383d0
-      size: 7759
+      md5: f7d5479edcbf385ce25ec4c14011c0cc
+      size: 7707
     params:
       params.yaml:
         build:
@@ -212,5 +222,5 @@ stages:
     outs:
     - path: folding.json
       hash: md5
-      md5: 8558b2bba87d4a67a24c8f6b9e99ff32
-      size: 842
+      md5: 97dcb0df262ff9f4f0378974dc127b3b
+      size: 875
