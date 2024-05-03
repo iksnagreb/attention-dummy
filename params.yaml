@@ -30,17 +30,19 @@ export:
 # FINN build configuration
 build:
   # Directory to store the build outputs
-  output_dir: "build"
+  output_dir: build
+  # Run synthesis to generate a .dcp for the stitched-IP output product
+  stitched_ip_gen_dcp: False
   # Target clock period, i.e., inverse of target frequency
   synth_clk_period_ns: 10.0
   # Board to target with the build
-  board: "RFSoC2x2"
+  board: RFSoC2x2
   # Target shell flow: 'vivado_zynq' or 'vitis_alveo'
-  shell_flow_type: "vivado_zynq"
+  shell_flow_type: vivado_zynq
   # Path to folding configuration JSON file
-  folding_config_file: "folding.json"
+  folding_config_file: folding.json
   # Path to layer implementation style specialization config
-  specialize_layers_config_file: "specialize_layers.json"
+  specialize_layers_config_file: specialize_layers.json
   # Force the implementation of standalone thresholds to be able to use RTL
   # implementation of the MVU
   standalone_thresholds: True

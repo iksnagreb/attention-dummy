@@ -49,12 +49,12 @@ stages:
       size: 38801
     - path: build.py
       hash: md5
-      md5: 582d284f70f6684e5ea560c9c2fc6754
-      size: 5875
+      md5: 76386c4596e5ba0c7804004892b59151
+      size: 6277
     - path: build_steps.py
       hash: md5
-      md5: 0a4803d6f41d0c1c336e6e7f63cdda0e
-      size: 13263
+      md5: 303b3feea23dcc257a008aa819265158
+      size: 15206
     - path: inp.npy
       hash: md5
       md5: 3aff9fda4ce8caf6268018b81573c1db
@@ -75,12 +75,24 @@ stages:
       params.yaml:
         build:
           output_dir: build
+          stitched_ip_gen_dcp: false
           synth_clk_period_ns: 10.0
           board: RFSoC2x2
           shell_flow_type: vivado_zynq
           folding_config_file: folding.json
           specialize_layers_config_file: specialize_layers.json
           standalone_thresholds: true
+        model:
+          num_heads: 1
+          num_layers: 1
+          bias: true
+          emb_dim: 8
+          mlp_dim: 32
+          seq_len: 32
+          bits: 4
+          norm: none
+          mask: none
+        seed: 12
       folding.json:
         Defaults:
           inFIFODepths:
@@ -95,14 +107,6 @@ stages:
             - 2
             - 2
           - all
-          SIMD:
-          - 2
-          - - MVAU_hls
-            - MVAU_rtl
-          PE:
-          - 4
-          - - MVAU_hls
-            - MVAU_rtl
           ram_style:
           - auto
           - - StreamingFIFO_hls
@@ -113,44 +117,19 @@ stages:
           inFIFODepths:
           - 2
           - 2
-          PE: 1
         ElementwiseAdd_hls_1:
           inFIFODepths:
           - 1024
           - 1024
-          PE: 1
         ElementwiseAdd_hls_2:
           inFIFODepths:
           - 1024
           - 1024
-          PE: 1
         ScaledDotProductAttention_hls_0:
           inFIFODepths:
           - 32
           - 32
           - 32
-          SeqFold: 32
-          EmbFold: 1
-        Thresholding_rtl_0:
-          PE: 1
-        Thresholding_rtl_1:
-          PE: 1
-        Thresholding_rtl_2:
-          PE: 1
-        Thresholding_rtl_3:
-          PE: 1
-        Thresholding_rtl_4:
-          PE: 1
-        Thresholding_rtl_5:
-          PE: 1
-        Thresholding_rtl_6:
-          PE: 1
-        Thresholding_rtl_7:
-          PE: 1
-        Thresholding_rtl_8:
-          PE: 1
-        Thresholding_rtl_9:
-          PE: 1
       specialize_layers.json:
         '':
           preferred_impl_style: ''
@@ -162,21 +141,21 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 14ed038f82a427b348eea18da937fb56.dir
-      size: 93672912
-      nfiles: 1019
+      md5: 215306243ca6ce7513fb946f3fd2684b.dir
+      size: 92091294
+      nfiles: 911
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 14ed038f82a427b348eea18da937fb56.dir
-      size: 93672912
-      nfiles: 1019
+      md5: 215306243ca6ce7513fb946f3fd2684b.dir
+      size: 92091294
+      nfiles: 911
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: e2b53b67426a0dde1b8f254fa57b1f86
-      size: 14464
+      md5: 352e5526f2653bfb70724be4935b115a
+      size: 12321
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -190,19 +169,20 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 9b3d6b1fe9d45050026151e134ca547c
+      md5: 20313d02c8cc85882c7b52b200452350
       size: 71
   folding:
     cmd: python -m make_folding
     deps:
     - path: make_folding.py
       hash: md5
-      md5: f7d5479edcbf385ce25ec4c14011c0cc
-      size: 7707
+      md5: 6577bd4a83b4d51038ef68ebed9cb4b5
+      size: 3467
     params:
       params.yaml:
         build:
           output_dir: build
+          stitched_ip_gen_dcp: false
           synth_clk_period_ns: 10.0
           board: RFSoC2x2
           shell_flow_type: vivado_zynq
@@ -222,5 +202,5 @@ stages:
     outs:
     - path: folding.json
       hash: md5
-      md5: 97dcb0df262ff9f4f0378974dc127b3b
-      size: 875
+      md5: 991c1938a9c9ade92df1748b2947e185
+      size: 413

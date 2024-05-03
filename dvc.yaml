@@ -67,7 +67,9 @@ stages:
       - out.npy
     # Parameters used by this stage
     params:
-      # Track the build section from the parameters file
+      # Track the model, RNG-seed and build section from the parameters file
+      - model
+      - seed
       - build
       # Folding configurations specifying parallelization and FIFO sizes for the
       # layers/operators

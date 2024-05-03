@@ -1,5 +1,7 @@
 # QONNX wrapper of ONNX model graphs
 from qonnx.core.modelwrapper import ModelWrapper
+# Converts ONNX graph nodes to QONNX custom-ops if possible
+from qonnx.custom_op.registry import getCustomOp
 # QONNX graph transformations for renaming and cleaning up
 from qonnx.transformation.general import (
     GiveUniqueNodeNames,
@@ -64,6 +66,8 @@ from finn.transformation.fpgadataflow.replicate_stream import (
 from finn.builder.build_dataflow_config import (
     VerificationStepType, DataflowBuildConfig
 )
+# Graph transformation setting the folding, i.e., parallelization configuration
+from finn.transformation.fpgadataflow.set_folding import SetFolding
 # FINN verification after build/graph transformation steps
 from finn.builder.build_dataflow_steps import verify_step
 
@@ -290,3 +294,37 @@ def step_tidy_up_post_attention(model: ModelWrapper, _):
     model = model.transform(GiveReadableTensorNames())
     # Return the tidied up model
     return model
+
+
+# Custom step for setting the parallelism to meet the target of T^2 cycles per
+# sequence
+def step_set_target_parallelization(seq_len: int, emb_dim: int): # noqa: emb_dim
+    # The wrapping function is a generator and this is the actual build step
+    # function taking the model and build configuration
+    def _step_set_target_parallelization(
+            model: ModelWrapper, cfg: DataflowBuildConfig
+    ):
+        # Run over all nodes in the model graph to look for attention operators,
+        # which are currently not handled by the SetFolding transformation
+        for index, node in enumerate(model.graph.node):
+            # Only handle attention operations here
+            if node.op_type == "ScaledDotProductAttention_hls":
+                # Convert this to the custom-op instance for easy access to node
+                # attributes
+                inst = getCustomOp(node)
+                # Set the sequence and embedding dimension folding to meet the
+                # T^2 cycles target, i.e., fully parallel along the embedding
+                # dimension and fully sequential along the sequence dimension
+                inst.set_nodeattr("EmbFold", 1)
+                inst.set_nodeattr("SeqFold", seq_len)
+        # Apply the built-in folding configuration transformation with the
+        # T^2 target cycles
+        model = model.transform(SetFolding(
+            seq_len ** 2, cfg.mvau_wwidth_max, cfg.folding_two_pass_relaxation
+        ))
+        # TODO: Extract the folding configuration
+        # Return the model with configured parallelization
+        return model
+
+    # Return the wrapped build step function
+    return _step_set_target_parallelization

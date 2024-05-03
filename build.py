@@ -6,6 +6,9 @@ import finn.builder.build_dataflow as build
 import finn.builder.build_dataflow_config as build_cfg
 from finn.builder.build_dataflow_config import AutoFIFOSizingMethod
 
+# Seeding RNGs for reproducibility
+from utils import seed
+
 # Custom build steps required to streamline and convert the attention operator
 from build_steps import (
     step_tidy_up_pre_attention,
@@ -16,7 +19,8 @@ from build_steps import (
     step_streamline_positional,
     step_convert_attention_to_hw,
     step_convert_elementwise_binary_to_hw,
-    step_replicate_streams
+    step_replicate_streams,
+    step_set_target_parallelization
 )
 
 # Script entrypoint
@@ -24,12 +28,16 @@ if __name__ == "__main__":
     # Open the configuration file
     with open("params.yaml") as file:
         # Load the configuration from yaml format
-        params = yaml.safe_load(file)["build"]
+        params = yaml.safe_load(file)
+    # Seed all RNGs
+    seed(params["seed"])
+    # Extract sequence length and embedding dimension from parameters
+    seq_len, emb_dim = params["model"]["seq_len"], params["model"]["emb_dim"]
     # Create a configuration for building the scaled dot-product attention
     # operator to a hardware accelerator
     cfg = build_cfg.DataflowBuildConfig(
         # Unpack the build configuration parameters
-        **params,
+        **params["build"],
         # Generate and keep the intermediate outputs including reports
         generate_outputs=[
             build_cfg.DataflowOutputType.ESTIMATE_REPORTS,
@@ -104,7 +112,9 @@ if __name__ == "__main__":
             "step_specialize_layers",
             # From here on it is basically the default flow...
             "step_create_dataflow_partition",
-            "step_target_fps_parallelization",
+            # Set the folding configuration to meet the cycles per sequence
+            # target
+            step_set_target_parallelization(seq_len, emb_dim),
             # Note: This triggers a verification step
             "step_apply_folding_config",
             "step_minimize_bit_width",
