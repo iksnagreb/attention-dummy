@@ -342,6 +342,85 @@ class TransformerBlock(torch.nn.Module):
         return self.norm_mlp(self.residual_mlp(x, self.mlp(x)))
 
 
+# Quantized sinusoidal positional encoding layer
+class QuantSinusoidalPositionalEncoding(torch.nn.Module):
+    # Initializes the model and registers the module parameters
+    def __init__(self, input_quant, output_quant, return_quant_tensor):
+        # Initialize the PyTorch Module superclass
+        super().__init__()
+        # Adds the quantized input and positional encoding
+        self.add = QuantEltwiseAdd(
+            # Input quantization to be applied to the input as well as the
+            # positional encodings
+            input_quant=input_quant,
+            # Quantize the outputs after adding input and positional encoding
+            output_quant=output_quant,
+            # Returns quantization information to the next layer
+            return_quant_tensor=return_quant_tensor
+        )
+
+    # Forward pass adding positional encoding to the input tensor
+    def forward(self, x):
+        # Get the size of the inputs to dynamically generate encodings of the
+        # same size
+        _, seq, emb = x.shape
+        # Start by enumerating all steps of the sequence
+        i = torch.as_tensor([[n] for n in range(seq)])
+        # Scale factor adjusting the frequency/wavelength of the sinusoid
+        # depending on the embedding dimension index
+        f = torch.as_tensor([1e4 ** -(i / emb) for i in range(0, emb, 2)])
+        # Prepare empty positional encoding tensor of the same size as the input
+        pos = torch.empty(seq, emb)
+        # Fill the positional encoding with alternating sine and cosine waves
+        pos[:, 0::2] = torch.sin(f * i)
+        pos[:, 1::2] = torch.cos(f * i)
+        # Move the encoding tensor to the same device as the input tensor
+        pos = pos.to(x.device, dtype=x.dtype)
+        # Add the quantized encoding to the quantized input
+        return self.add(x, pos)
+
+
+# Quantized learned positional encoding layer
+class QuantLearnedPositionalEncoding(torch.nn.Module):
+    # Initializes the model and registers the module parameters
+    def __init__(
+            self,
+            seq_len,
+            emb_dim,
+            input_quant,
+            output_quant,
+            return_quant_tensor
+    ):
+        # Initialize the PyTorch Module superclass
+        super().__init__()
+        # Adds the quantized input and positional encoding
+        self.add = QuantEltwiseAdd(
+            # Input quantization to be applied to the input as well as the
+            # positional encodings
+            input_quant=input_quant,
+            # Quantize the outputs after adding input and positional encoding
+            output_quant=output_quant,
+            # Returns quantization information to the next layer
+            return_quant_tensor=return_quant_tensor
+        )
+        # Register a parameter tensor representing the not quantized positional
+        # encoding
+        self.pos = torch.nn.Parameter(torch.empty(seq_len, emb_dim))
+        # Reset/Initialize the parameter tensor
+        self.reset_parameters()
+
+    # Resets/Initializes the positional encoding parameter tensor
+    def reset_parameters(self):
+        # Initialize the positional encoding from a normal distribution with
+        # zero mean and unit standard deviation
+        torch.nn.init.normal_(self.pos, mean=0, std=1)
+
+    # Forward pass adding positional encoding to the input tensor
+    def forward(self, x):
+        # Add the quantized encoding to the quantized input
+        return self.add(x, self.pos)
+
+
 # Quantized binary positional encoding layer
 class QuantBinaryPositionalEncoding(torch.nn.Module):
     # Initializes the model and registers the module parameters
@@ -374,6 +453,35 @@ class QuantBinaryPositionalEncoding(torch.nn.Module):
         # Add the quantized encoding tp the quantized input
         #   Note: Convert encoding to bipolar representation
         return self.add(x, 2 * pos - 1)
+
+
+# Gets the positional encoding layer from configuration key, quantizers and
+# shape
+def get_positional_encoding(
+        key, seq_len, emb_dim, input_quant, output_quant, return_quant_tensor
+):
+    # Dictionary mapping keys to supported normalization layer implementations
+    masks = {
+        # No positional encoding
+        "none": QuantIdentity(
+            act_quant=input_quant, return_quant_tensor=return_quant_tensor
+        ),
+        # Fixed, sinusoidal positional encoding according to Vaswani et al. with
+        # added quantizers
+        "sinusoidal": QuantSinusoidalPositionalEncoding(
+            input_quant, output_quant, return_quant_tensor
+        ),
+        # Fixed, binary positional encoding with quantizers
+        "binary": QuantBinaryPositionalEncoding(
+            input_quant, output_quant, return_quant_tensor
+        ),
+        # Learned positional encoding with quantizers
+        "learned": QuantLearnedPositionalEncoding(
+            seq_len, emb_dim, input_quant, output_quant, return_quant_tensor
+        )
+    }
+    # Select the positional encoding type by key
+    return masks[key]
 
 
 # Unpacks the standard PyTorch tensor from a brevitas QuantTensor
@@ -409,14 +517,23 @@ class DummyTransformer(torch.nn.Module):
             # Type of normalization layer to use in the transformer blocks
             #   Options are: layer-norm, batch-norm and none
             norm="none",
-            # Type of attention mask to use: 'none', 'causal' or 'const'
-            mask="none"
+            # Type of attention mask to use
+            #   Options are: none, causal or const
+            mask="none",
+            # Type of positional encoding to use at the input
+            #   Options are: none, sinusoidal, binary, learned
+            positional_encoding="none"
     ):
         # Initialize the PyTorch Module superclass
         super().__init__()
 
         # Positional encoding layer at the input
-        self.pos = QuantBinaryPositionalEncoding(
+        self.pos = get_positional_encoding(
+            # Select the implementation by configuration key
+            key=positional_encoding,
+            # Some variants of positional encoding need to know the input
+            # dimensions to initializes parameter tensors
+            seq_len=seq_len, emb_dim=emb_dim,
             # Quantize the inputs to the positional encoding to the same
             # bit-width as the input
             input_quant=act_quantizer(bits, _signed=True),

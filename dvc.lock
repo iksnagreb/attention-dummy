@@ -9,8 +9,8 @@ stages:
       size: 3846
     - path: model.py
       hash: md5
-      md5: fda642aa201ec09141c2f85a845b0729
-      size: 20176
+      md5: 2611ba6af6785ff4dd11b543bee094d7
+      size: 25202
     params:
       params.yaml:
         export:
@@ -26,26 +26,27 @@ stages:
           bits: 4
           norm: none
           mask: none
+          positional_encoding: binary
         seed: 12
     outs:
     - path: attention.onnx
       hash: md5
-      md5: 2a08a69134138a28feb42678965284de
+      md5: bc89ae55a2c874cc917ac198973bbc6a
       size: 38801
     - path: inp.npy
       hash: md5
-      md5: 3aff9fda4ce8caf6268018b81573c1db
+      md5: 9b75b0cd1d4fc3b0f4af8401da83b7f4
       size: 1152
     - path: out.npy
       hash: md5
-      md5: 3a26ce1a07e992ad430beb1676fd1d39
+      md5: a446bf5b03628946ffa374edbed4400b
       size: 1152
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
     deps:
     - path: attention.onnx
       hash: md5
-      md5: 2a08a69134138a28feb42678965284de
+      md5: bc89ae55a2c874cc917ac198973bbc6a
       size: 38801
     - path: build.py
       hash: md5
@@ -57,7 +58,7 @@ stages:
       size: 15206
     - path: inp.npy
       hash: md5
-      md5: 3aff9fda4ce8caf6268018b81573c1db
+      md5: 9b75b0cd1d4fc3b0f4af8401da83b7f4
       size: 1152
     - path: noctua.sh
       hash: md5
@@ -65,7 +66,7 @@ stages:
       size: 1832
     - path: out.npy
       hash: md5
-      md5: 3a26ce1a07e992ad430beb1676fd1d39
+      md5: a446bf5b03628946ffa374edbed4400b
       size: 1152
     - path: run.sh
       hash: md5
@@ -82,16 +83,8 @@ stages:
           folding_config_file: folding.json
           specialize_layers_config_file: specialize_layers.json
           standalone_thresholds: true
-        model:
-          num_heads: 1
-          num_layers: 1
-          bias: true
-          emb_dim: 8
-          mlp_dim: 32
-          seq_len: 32
-          bits: 4
-          norm: none
-          mask: none
+        model.emb_dim: 8
+        model.seq_len: 32
         seed: 12
       folding.json:
         Defaults:
@@ -141,20 +134,20 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 215306243ca6ce7513fb946f3fd2684b.dir
-      size: 92091294
+      md5: 7bf662650f572ff27748e477f9e77ab1.dir
+      size: 92049175
       nfiles: 911
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 215306243ca6ce7513fb946f3fd2684b.dir
-      size: 92091294
+      md5: 7bf662650f572ff27748e477f9e77ab1.dir
+      size: 92049175
       nfiles: 911
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 352e5526f2653bfb70724be4935b115a
+      md5: d0e16c37e4a7188b25ea758a112bfe07
       size: 12321
     - path: metrics.py
       hash: md5
@@ -169,7 +162,7 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 20313d02c8cc85882c7b52b200452350
+      md5: b775a7820d7890676254e2e9cd1e4f14
       size: 71
   folding:
     cmd: python -m make_folding
@@ -199,6 +192,7 @@ stages:
           bits: 4
           norm: none
           mask: none
+          positional_encoding: binary
     outs:
     - path: folding.json
       hash: md5

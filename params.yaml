@@ -19,8 +19,12 @@ model:
   # Type of normalization layer to use in the transformer blocks
   #   Options are: layer-norm, batch-norm and none
   norm: none
-  # Type of attention mask to use: 'none', 'causal' or 'const'
+  # Type of attention mask to use
+  #   Options are: none, causal or const
   mask: none
+  # Type of positional encoding to use at the input
+  #   Options are: none, sinusoidal, binary, learned
+  positional_encoding: binary
 # Model to ONNX export hyperparameters
 export:
   # Version of the default ONNX opset
