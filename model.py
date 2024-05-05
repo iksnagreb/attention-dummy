@@ -421,6 +421,48 @@ class QuantLearnedPositionalEncoding(torch.nn.Module):
         return self.add(x, self.pos)
 
 
+# Lazy version of the learned encoding not requiring input dimensions at
+# initialization, inferring these at the first forward pass
+class LazyQuantLearnedPositionalEncoding(
+    torch.nn.modules.lazy.LazyModuleMixin, QuantLearnedPositionalEncoding # noqa
+):
+    # Once initialized, this will become a QuantLearnedPositionalEncoding as
+    # defined above
+    cls_to_become = QuantLearnedPositionalEncoding
+    # Parameter tensor of the QuantLearnedPositionalEncoding is uninitialized
+    pos: torch.nn.UninitializedParameter
+
+    # Initializes the model and registers the module parameters
+    def __init__(self, input_quant, output_quant, return_quant_tensor):
+        # Initialize the quantizer parts of QuantLearnedPositionalEncoding,
+        # leaving the dimensions empty
+        super().__init__(0, 0, input_quant, output_quant, return_quant_tensor)
+        # Register an uninitialized parameter tensor for the positional encoding
+        self.pos = torch.nn.UninitializedParameter()
+
+    # Resets/Initializes the positional encoding parameter tensor
+    def reset_parameters(self):
+        # If this has already been initialized, delegate to the actual
+        # implementation
+        if not self.has_uninitialized_params():
+            super().reset_parameters()
+
+    # Initializes/Materializes the uninitialized parameter tensor given some
+    # sample input tensor to infer the dimensions
+    def initialize_parameters(self, x):
+        # Only materialize the parameter tensor if it is not yet initialized
+        if self.has_uninitialized_params():
+            # Do not accumulate gradient information from initialization
+            with torch.no_grad():
+                # Get the size of the inputs to generate encodings of the same
+                # size
+                _, seq, emb = x.shape
+                # Materialize the positional encoding parameter tensor
+                self.pos.materialize((seq, emb))
+                # Properly initialize the parameters by resetting the values
+                self.reset_parameters()
+
+
 # Quantized binary positional encoding layer
 class QuantBinaryPositionalEncoding(torch.nn.Module):
     # Initializes the model and registers the module parameters
@@ -458,7 +500,7 @@ class QuantBinaryPositionalEncoding(torch.nn.Module):
 # Gets the positional encoding layer from configuration key, quantizers and
 # shape
 def get_positional_encoding(
-        key, seq_len, emb_dim, input_quant, output_quant, return_quant_tensor
+        key, input_quant, output_quant, return_quant_tensor
 ):
     # Dictionary mapping keys to supported normalization layer implementations
     masks = {
@@ -476,8 +518,8 @@ def get_positional_encoding(
             input_quant, output_quant, return_quant_tensor
         ),
         # Learned positional encoding with quantizers
-        "learned": QuantLearnedPositionalEncoding(
-            seq_len, emb_dim, input_quant, output_quant, return_quant_tensor
+        "learned": LazyQuantLearnedPositionalEncoding(
+            input_quant, output_quant, return_quant_tensor
         )
     }
     # Select the positional encoding type by key
@@ -531,9 +573,6 @@ class DummyTransformer(torch.nn.Module):
         self.pos = get_positional_encoding(
             # Select the implementation by configuration key
             key=positional_encoding,
-            # Some variants of positional encoding need to know the input
-            # dimensions to initializes parameter tensors
-            seq_len=seq_len, emb_dim=emb_dim,
             # Quantize the inputs to the positional encoding to the same
             # bit-width as the input
             input_quant=act_quantizer(bits, _signed=True),

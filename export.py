@@ -63,6 +63,8 @@ if __name__ == "__main__":
     params = dvc.api.params_show("params.yaml")
     # Seed all RNGs
     seed(params["seed"])
+    # Make PyTorch behave deterministically if possible
+    torch.use_deterministic_algorithms(mode=True)
     # Create a model instance from the configuration parameters
     model = DummyTransformer(**params["model"])
     # Get the configured sequence length and embedding dimension to generate
