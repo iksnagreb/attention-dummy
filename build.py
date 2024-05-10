@@ -20,7 +20,8 @@ from build_steps import (
     step_convert_attention_to_hw,
     step_convert_elementwise_binary_to_hw,
     step_replicate_streams,
-    step_set_target_parallelization
+    step_set_target_parallelization,
+    step_infer_fifo_depths
 )
 
 # Script entrypoint
@@ -123,6 +124,8 @@ if __name__ == "__main__":
             "step_generate_estimate_reports",
             "step_hw_codegen",
             "step_hw_ipgen",
+            # Try to infer the attention- and residual-related FIFO depths
+            step_infer_fifo_depths(seq_len, emb_dim),
             "step_set_fifo_depths",
             "step_create_stitched_ip",
             # Attention does currently not support RTL simulation due to missing

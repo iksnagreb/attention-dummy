@@ -50,12 +50,12 @@ stages:
       size: 38801
     - path: build.py
       hash: md5
-      md5: 76386c4596e5ba0c7804004892b59151
-      size: 6277
+      md5: d289afb02ae0c1773e29bcc67f2afd66
+      size: 6434
     - path: build_steps.py
       hash: md5
-      md5: 303b3feea23dcc257a008aa819265158
-      size: 15206
+      md5: 7da389d272d237eae418dbb7bf5b50bc
+      size: 18393
     - path: inp.npy
       hash: md5
       md5: 3aff9fda4ce8caf6268018b81573c1db
@@ -88,41 +88,12 @@ stages:
         seed: 12
       folding.json:
         Defaults:
-          inFIFODepths:
-          - - 2
-            - 2
-            - 2
-            - 2
-          - all
-          outFIFODepths:
-          - - 2
-            - 2
-            - 2
-            - 2
-          - all
           ram_style:
           - auto
           - - StreamingFIFO_hls
             - StreamingFIFO_rtl
             - MVAU_hls
             - MVAU_rtl
-        ElementwiseAdd_hls_0:
-          inFIFODepths:
-          - 2
-          - 2
-        ElementwiseAdd_hls_1:
-          inFIFODepths:
-          - 1024
-          - 1024
-        ElementwiseAdd_hls_2:
-          inFIFODepths:
-          - 1024
-          - 1024
-        ScaledDotProductAttention_hls_0:
-          inFIFODepths:
-          - 32
-          - 32
-          - 32
       specialize_layers.json:
         '':
           preferred_impl_style: ''
@@ -134,17 +105,17 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: c34fc9b2a193dd4351962d02d7f855bf.dir
-      size: 92090918
-      nfiles: 911
+      md5: 38361cac6636e58278bfcc2fcbd43820.dir
+      size: 92107855
+      nfiles: 912
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: c34fc9b2a193dd4351962d02d7f855bf.dir
-      size: 92090918
-      nfiles: 911
+      md5: 38361cac6636e58278bfcc2fcbd43820.dir
+      size: 92107855
+      nfiles: 912
     - path: build/report/post_synth_resources.json
       hash: md5
       md5: 352e5526f2653bfb70724be4935b115a
@@ -169,8 +140,8 @@ stages:
     deps:
     - path: make_folding.py
       hash: md5
-      md5: 6577bd4a83b4d51038ef68ebed9cb4b5
-      size: 3467
+      md5: 109abe8be2208a83b6a75402a7724a55
+      size: 1282
     params:
       params.yaml:
         build:
@@ -196,5 +167,5 @@ stages:
     outs:
     - path: folding.json
       hash: md5
-      md5: 991c1938a9c9ade92df1748b2947e185
-      size: 413
+      md5: 06ee08cf2900925414fe100e2f3cdb80
+      size: 105

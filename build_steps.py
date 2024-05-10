@@ -298,7 +298,8 @@ def step_tidy_up_post_attention(model: ModelWrapper, _):
 
 # Custom step for setting the parallelism to meet the target of T^2 cycles per
 # sequence
-def step_set_target_parallelization(seq_len: int, emb_dim: int): # noqa: emb_dim
+def step_set_target_parallelization(seq_len: int,
+                                    emb_dim: int):  # noqa: emb_dim
     # The wrapping function is a generator and this is the actual build step
     # function taking the model and build configuration
     def _step_set_target_parallelization(
@@ -328,3 +329,67 @@ def step_set_target_parallelization(seq_len: int, emb_dim: int): # noqa: emb_dim
 
     # Return the wrapped build step function
     return _step_set_target_parallelization
+
+
+# Custom build step trying to infer appropriate FIFO sizes for attention-related
+# operators
+def step_infer_fifo_depths(seq_len: int, emb_dim: int):  # noqa: emb_dim
+    # The wrapping function is a generator and this is the actual build step
+    # function taking the model and build configuration
+    def _step_infer_fifo_depths(model: ModelWrapper, _: DataflowBuildConfig):
+        # Run over all nodes in the model graph
+        for index, node in enumerate(model.graph.node):
+            # Convert this to the custom-op instance for easy access to node
+            # attributes
+            inst = getCustomOp(node)
+            # Extract the FIFO depths configuration of the node
+            in_depths = inst.get_nodeattr("inFIFODepths")
+            out_depths = inst.get_nodeattr("outFIFODepths")
+
+            # Number of inputs and outputs to/from the node
+            num_inputs = len(node.input)
+            num_outputs = len(node.output)
+
+            # If the input/output has only default configurations, fill with as
+            # many shallow FIFOs as there are inputs, to avoid later problems
+            # with to few FIFO depths specified
+            if in_depths == [2] and num_inputs > 1:
+                in_depths = num_inputs * [2]
+            if out_depths == [2] and num_outputs > 1:
+                out_depths = num_outputs * [2]
+
+            # Special case: Attention needs properly sized input FIFOs
+            if node.op_type == "ScaledDotProductAttention_hls":
+                # Each folded input stream needs to be buffered completely
+                # TODO: Not exactly sure whether this is always correct or just
+                #  the worst-case
+                in_depths = [
+                    inst.get_number_input_values(i) for i in range(num_inputs)
+                ]
+                # Note: No special treatment of the output FIFO
+                # out_depths = ...
+
+            # Special case: Adding residual branches needs to buffer the inputs
+            # to avoid deadlocks if one branch is running faster/slower
+            if node.op_type == "ElementwiseAdd_hls":
+                # Only relevant if for join-node operations, i.e., node actually
+                # consumes two branches, potentially operating at a different
+                # rate
+                if model.is_join_node(node):
+                    # Set both inputs to buffer as many cycles as we target for
+                    # the attention operations, i.e., the T^2 cycles per
+                    # sequence target
+                    # TODO: Not exactly sure whether this is always correct or
+                    #  just the worst-case
+                    in_depths = [seq_len ** 2, seq_len ** 2]
+                    # Note: No special treatment of the output FIFO
+                    # out_depths = ...
+
+            # Set the updated FIFO depths attributes
+            inst.set_nodeattr("inFIFODepths", in_depths)
+            inst.set_nodeattr("outFIFODepths", out_depths)
+        # Return the model with configured parallelization
+        return model
+
+    # Return the wrapped build step function
+    return _step_infer_fifo_depths
