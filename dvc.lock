@@ -50,12 +50,12 @@ stages:
       size: 38801
     - path: build.py
       hash: md5
-      md5: d289afb02ae0c1773e29bcc67f2afd66
-      size: 6434
+      md5: f2209f288881b73eeb990cab0b9f60eb
+      size: 6582
     - path: build_steps.py
       hash: md5
-      md5: 7da389d272d237eae418dbb7bf5b50bc
-      size: 18393
+      md5: aab02d9372cd37fc43dd88aa8dde9cde
+      size: 27450
     - path: inp.npy
       hash: md5
       md5: 3aff9fda4ce8caf6268018b81573c1db
@@ -80,20 +80,32 @@ stages:
           synth_clk_period_ns: 10.0
           board: RFSoC2x2
           shell_flow_type: vivado_zynq
-          folding_config_file: folding.json
+          folding_config_file: folding.yaml
           specialize_layers_config_file: specialize_layers.json
           standalone_thresholds: true
+          max_multithreshold_bit_width: 8
+          mvau_wwidth_max: 36
         model.emb_dim: 8
         model.seq_len: 32
         seed: 12
-      folding.json:
-        Defaults:
-          ram_style:
-          - auto
-          - - StreamingFIFO_hls
-            - StreamingFIFO_rtl
-            - MVAU_hls
-            - MVAU_rtl
+      folding.yaml:
+        defaults:
+          MVAU_hls:
+            resType: auto
+            mem_mode: internal_decoupled
+            ram_style: auto
+            ram_style_thresholds: auto
+          MVAU_rtl:
+            resType: dsp
+            mem_mode: internal_decoupled
+            ram_style: auto
+          Thresholding_hls:
+            mem_mode: internal_decoupled
+            ram_style: distributed
+          Thresholding_rtl: {}
+          StreamingFIFO_rtl:
+            impl_style: rtl
+            ram_style: auto
       specialize_layers.json:
         '':
           preferred_impl_style: ''
@@ -105,17 +117,17 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 38361cac6636e58278bfcc2fcbd43820.dir
-      size: 92107855
-      nfiles: 912
+      md5: c12225dcaa20f6888a4ddb3fad18b16a.dir
+      size: 92018125
+      nfiles: 911
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 38361cac6636e58278bfcc2fcbd43820.dir
-      size: 92107855
-      nfiles: 912
+      md5: c12225dcaa20f6888a4ddb3fad18b16a.dir
+      size: 92018125
+      nfiles: 911
     - path: build/report/post_synth_resources.json
       hash: md5
       md5: 352e5526f2653bfb70724be4935b115a

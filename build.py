@@ -20,8 +20,9 @@ from build_steps import (
     step_convert_attention_to_hw,
     step_convert_elementwise_binary_to_hw,
     step_replicate_streams,
-    step_set_target_parallelization,
-    step_infer_fifo_depths
+    set_target_parallelization,
+    set_fifo_depths,
+    step_apply_folding_config
 )
 
 # Script entrypoint
@@ -39,6 +40,8 @@ if __name__ == "__main__":
     cfg = build_cfg.DataflowBuildConfig(
         # Unpack the build configuration parameters
         **params["build"],
+        # Print all warnings and compiler output to stdout
+        verbose=True,
         # Generate and keep the intermediate outputs including reports
         generate_outputs=[
             build_cfg.DataflowOutputType.ESTIMATE_REPORTS,
@@ -111,22 +114,23 @@ if __name__ == "__main__":
             "step_convert_to_hw",
             # Specialize HW layer implementations as either HLS or RTL
             "step_specialize_layers",
-            # From here on it is basically the default flow...
             "step_create_dataflow_partition",
             # Set the folding configuration to meet the cycles per sequence
             # target
-            step_set_target_parallelization(seq_len, emb_dim),
+            set_target_parallelization(seq_len, emb_dim),
+            # Apply folding configuration, specifying hardware implementation
+            # details
             # Note: This triggers a verification step
-            "step_apply_folding_config",
+            step_apply_folding_config,
             "step_minimize_bit_width",
             # The ScaledDotProductAttention custom op does not define any
             # estimates
             "step_generate_estimate_reports",
             "step_hw_codegen",
             "step_hw_ipgen",
-            # Try to infer the attention- and residual-related FIFO depths
-            step_infer_fifo_depths(seq_len, emb_dim),
-            "step_set_fifo_depths",
+            # Set the attention- and residual-related FIFO depths insert FIFOs
+            # and apply folding configuration once again
+            set_fifo_depths(seq_len, emb_dim),
             "step_create_stitched_ip",
             # Attention does currently not support RTL simulation due to missing
             # float IPs.

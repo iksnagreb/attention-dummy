@@ -43,13 +43,17 @@ build:
   board: RFSoC2x2
   # Target shell flow: 'vivado_zynq' or 'vitis_alveo'
   shell_flow_type: vivado_zynq
-  # Path to folding configuration JSON file
-  folding_config_file: folding.json
+  # Path to folding configuration file
+  folding_config_file: folding.yaml
   # Path to layer implementation style specialization config
   specialize_layers_config_file: specialize_layers.json
   # Force the implementation of standalone thresholds to be able to use RTL
   # implementation of the MVU
   standalone_thresholds: True
+  # Maximum bit-width of quantizers converted to multi-thresholds
+  max_multithreshold_bit_width: 8
+  # Maximum width of MVAU stream per PE
+  mvau_wwidth_max: 36
 #  # Optional: Start the build from a specific step
 #  start_step: "step_tidy_up_pre_attention"
 #  # Optional: Stop the build after a specific step

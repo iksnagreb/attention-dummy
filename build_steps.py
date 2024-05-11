@@ -1,3 +1,5 @@
+# YAML for loading experiment configurations
+import yaml
 # QONNX wrapper of ONNX model graphs
 from qonnx.core.modelwrapper import ModelWrapper
 # Converts ONNX graph nodes to QONNX custom-ops if possible
@@ -9,7 +11,8 @@ from qonnx.transformation.general import (
     RemoveUnusedTensors,
     RemoveStaticGraphInputs,
     GiveUniqueParameterTensors,
-    ConvertDivToMul
+    ConvertDivToMul,
+    Transformation
 )
 # QONNX graph transformations for inferring datatypes and shapes
 from qonnx.transformation.infer_datatypes import InferDataTypes
@@ -62,6 +65,16 @@ from finn.transformation.fpgadataflow.attention_heads import (
 from finn.transformation.fpgadataflow.replicate_stream import (
     InferReplicateStream
 )
+# Inserts data-width converter and FIFO nodes into the model graph
+from finn.transformation.fpgadataflow.insert_dwc import InsertDWC
+from finn.transformation.fpgadataflow.insert_fifo import InsertFIFO
+# Splitting and removing of FIFOs from the model graph
+from finn.transformation.fpgadataflow.set_fifo_depths import (
+    RemoveShallowFIFOs,
+    SplitLargeFIFOs,
+)
+# Specializes each layer's implementation style: HLS or RTL implementation
+from finn.transformation.fpgadataflow.specialize_layers import SpecializeLayers
 # FINN dataflow builder configuration
 from finn.builder.build_dataflow_config import (
     VerificationStepType, DataflowBuildConfig
@@ -70,6 +83,13 @@ from finn.builder.build_dataflow_config import (
 from finn.transformation.fpgadataflow.set_folding import SetFolding
 # FINN verification after build/graph transformation steps
 from finn.builder.build_dataflow_steps import verify_step
+
+# Transformations preparing the operators for synthesis and simulation
+from finn.transformation.fpgadataflow.prepare_cppsim import PrepareCppSim
+from finn.transformation.fpgadataflow.compile_cppsim import CompileCppSim
+from finn.transformation.fpgadataflow.hlssynth_ip import HLSSynthIP
+from finn.transformation.fpgadataflow.prepare_ip import PrepareIP
+from finn.transformation.fpgadataflow.set_exec_mode import SetExecMode
 
 
 # Function running transformations necessary to clean up models containing
@@ -298,11 +318,11 @@ def step_tidy_up_post_attention(model: ModelWrapper, _):
 
 # Custom step for setting the parallelism to meet the target of T^2 cycles per
 # sequence
-def step_set_target_parallelization(seq_len: int,
+def set_target_parallelization(seq_len: int,
                                     emb_dim: int):  # noqa: emb_dim
     # The wrapping function is a generator and this is the actual build step
     # function taking the model and build configuration
-    def _step_set_target_parallelization(
+    def step_set_target_parallelization(
             model: ModelWrapper, cfg: DataflowBuildConfig
     ):
         # Run over all nodes in the model graph to look for attention operators,
@@ -328,15 +348,55 @@ def step_set_target_parallelization(seq_len: int,
         return model
 
     # Return the wrapped build step function
-    return _step_set_target_parallelization
+    return step_set_target_parallelization
 
 
-# Custom build step trying to infer appropriate FIFO sizes for attention-related
-# operators
-def step_infer_fifo_depths(seq_len: int, emb_dim: int):  # noqa: emb_dim
+# Applies configuration dictionary to the model graph
+class ApplyConfig(Transformation):
+    # Initializes the transformation with the configuration dictionary
+    def __init__(self, config):
+        # Initialize the transformation base class
+        super().__init__()
+        # Register the configuration dictionary to be used in apply()
+        self.config = config
+
+    # Applies the transform to a whole model graph
+    def apply(self, model: ModelWrapper):  # noqa
+        # Get the model graph out of the model wrapper object
+        graph = model.graph
+        # Iterate all nodes in the graph keeping track of the index
+        for index, node in enumerate(graph.node):
+            # A node should not be named "defaults"...
+            assert node.name != "defaults", \
+                "Node has reserved name 'defaults'"
+            # Convert this to the custom-op instance for easy access to node
+            # attributes
+            inst = getCustomOp(node)
+            # Apply the per operator type default configurations to the node
+            if node.op_type in self.config["defaults"]:
+                # Run over all default options to be applied to this node
+                for key, value in self.config["defaults"][node.op_type].items():
+                    # Set the nodes attribute to the default option value
+                    inst.set_nodeattr(key, value)
+            # If there is an individual, node-specific configuration apply
+            # this next, potentially overriding the defaults set above
+            if node.name in self.config:
+                # Run over all node-specific options to be applied to this
+                # node
+                for key, value in self.config[node.name].items():
+                    # Set the nodes attribute to the option value
+                    inst.set_nodeattr(key, value)
+        # Return model with configuration applied
+        # Note: Do not consider this as modifying the graph. This does not have
+        # to be reapplied multiple times.
+        return model, False
+
+
+# Custom build step trying to set appropriate FIFO sizes for the transformer
+def set_fifo_depths(seq_len: int, emb_dim: int):  # noqa: emb_dim
     # The wrapping function is a generator and this is the actual build step
     # function taking the model and build configuration
-    def _step_infer_fifo_depths(model: ModelWrapper, _: DataflowBuildConfig):
+    def step_set_fifo_depths(model: ModelWrapper, cfg: DataflowBuildConfig):
         # Run over all nodes in the model graph
         for index, node in enumerate(model.graph.node):
             # Convert this to the custom-op instance for easy access to node
@@ -381,6 +441,10 @@ def step_infer_fifo_depths(seq_len: int, emb_dim: int):  # noqa: emb_dim
                     # sequence target
                     # TODO: Not exactly sure whether this is always correct or
                     #  just the worst-case
+                    # TODO: Currently we do not really have a reliable way of
+                    #  figuring out which of the two is the longer/deeper branch
+                    #  in terms of cycles to set a corresponding buffer only to
+                    #  the shorter branch.
                     in_depths = [seq_len ** 2, seq_len ** 2]
                     # Note: No special treatment of the output FIFO
                     # out_depths = ...
@@ -388,8 +452,133 @@ def step_infer_fifo_depths(seq_len: int, emb_dim: int):  # noqa: emb_dim
             # Set the updated FIFO depths attributes
             inst.set_nodeattr("inFIFODepths", in_depths)
             inst.set_nodeattr("outFIFODepths", out_depths)
+
+        # The following partially mirrors (or even copies from) the build-in
+        # step_set_fifo_depths using only manual FIFO depths and our YAML-based
+        # folding configuration.
+
+        # Insert data-width converters
+        model = model.transform(InsertDWC())
+        # Insert FIFOs between all operators (inserts shallow, depths 2 FIFOs if
+        # no other depth is specified)
+        model = model.transform(InsertFIFO(create_shallow_fifos=True))
+        # Specialize the implementation variant of the (newly added FIFO) layers
+        model = model.transform(SpecializeLayers())
+        model = model.transform(GiveUniqueNodeNames())
+        model = model.transform(GiveReadableTensorNames())
+
+        # Only applies if a configuration file is given
+        if cfg.folding_config_file is not None:
+            # Load the configuration dictionary form YAML file
+            with (open(cfg.folding_config_file, "r") as file):
+                # Load YAML string
+                config = yaml.safe_load(file)
+                # Assign unique names to the nodes which can be matched by
+                # individual per-node configuration options
+                model = model.transform(GiveUniqueNodeNames())
+                # Apply the configuration dictionary to the model graph
+                model = model.transform(ApplyConfig(config))
+
+        # Hardware attributes to be extracted from each node
+        hw_attrs = {
+            "PE",
+            "SIMD",
+            "parallel_window",
+            "ram_style",
+            "ram_style_thresholds",
+            "depth",
+            "impl_style",
+            "resType",
+            "mem_mode",
+            "runtime_writeable_weights",
+            "inFIFODepths",
+            "outFIFODepths",
+            "depth_trigger_uram",
+            "depth_trigger_bram",
+        }
+
+        # Start collecting the configuration from the model graph as a
+        # dictionary
+        config = {"defaults": {}}
+        # Iterate all nodes in the graph keeping track of the index
+        for index, node in enumerate(model.graph.node):
+            # Convert this to the custom-op instance for easy access to node
+            # attributes
+            inst = getCustomOp(node)
+            # Prepare the node-specific configuration entry for this node
+            config[node.name] = {}
+            # Collect attribute values for all specified hardware attributes
+            for key in hw_attrs:
+                # Some hardware attributes may not be present for all nodes or
+                # op-types, this will be signaled via exception
+                try:
+                    # Try extracting the configuration value from the node
+                    # custom-op instance
+                    config[node.name][key] = inst.get_nodeattr(key)
+                # Missing attributes are signaled va AttributeError
+                except AttributeError:
+                    # Can be safely ignored here
+                    pass
+            # Cleanup: If no attribute is present for this node, there is no
+            # need to keep this in the configuration dictionary as there is
+            # nothing to be restored later
+            if not config[node.name]:
+                # Remove the entry form the configuration dictionary
+                del config[node.name]
+
+        # Create/Open a YAML file to store the configuration for later reuse
+        with open(cfg.output_dir + "/final_hw_config.yaml", "w") as file:
+            # Store the configuration dictionary as YAML code
+            yaml.safe_dump(config, file)
+
+        # Perform FIFO splitting and shallow FIFO removal only after the final
+        # config file has been written. Otherwise, since these transforms may
+        # add/remove FIFOs, we get name mismatch problems when trying to reuse
+        # the final config.
+        if cfg.split_large_fifos:
+            model = model.transform(SplitLargeFIFOs())
+        model = model.transform(RemoveShallowFIFOs())
+
+        # After FIFOs are ready to go, call PrepareIP and HLSSynthIP again
+        # this will only run for the new nodes (e.g. FIFOs and DWCs)
+        model = model.transform(
+            PrepareIP(
+                cfg._resolve_fpga_part(), cfg._resolve_hls_clk_period()  # noqa
+            )
+        )
+        model = model.transform(HLSSynthIP())
+
         # Return the model with configured parallelization
         return model
 
     # Return the wrapped build step function
-    return _step_infer_fifo_depths
+    return step_set_fifo_depths
+
+
+# Custom step applying our custom format of folding configuration to the graph
+def step_apply_folding_config(model: ModelWrapper, cfg: DataflowBuildConfig):
+    # Only applies if a configuration file is given
+    if cfg.folding_config_file is not None:
+        # Load the configuration dictionary form YAML file
+        with (open(cfg.folding_config_file, "r") as file):
+            # Load YAML string
+            config = yaml.safe_load(file)
+            # Assign unique names to the nodes which can be matched by
+            # individual per-node configuration options
+            model = model.transform(GiveUniqueNodeNames())
+            # Apply the configuration dictionary to the model graph
+            model = model.transform(ApplyConfig(config))
+    # If configured, run a verification of the transformed model on some sample
+    # inputs
+    if (VerificationStepType.FOLDED_HLS_CPPSIM in
+            cfg._resolve_verification_steps()):  # noqa
+        # Prepare C++ Simulation for verification
+        model = model.transform(PrepareCppSim())
+        model = model.transform(CompileCppSim())
+        model = model.transform(SetExecMode("cppsim"))
+        # Execute a verification step of the model with inputs specified in
+        # build configuration
+        verify_step(model, cfg, "folded_hls_cppsim", need_parent=True)
+
+    # Return model with configuration applied
+    return model

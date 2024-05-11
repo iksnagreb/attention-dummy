@@ -24,27 +24,6 @@ stages:
       # Input/Output pair in numpy format for verification during the build
       - inp.npy
       - out.npy
-  # Stage preparing the folding configuration
-  folding:
-    # Stage run the setup script as the command
-    cmd: python -m make_folding
-    # Dependencies of this stage to determine when it needs to be rerun
-    deps:
-      # The script executing the stage
-      - make_folding.py
-    # Parameters used by this stage
-    params:
-      # Track the build section from the parameters file
-      - build
-      # Track the model section from the parameters file
-      - model
-    # Outputs produced by this stage which should be tracked and passed on to
-    # the next stage
-    outs:
-      # Folding configuration JSON as parameters consumed by the next stage
-      - ${build.folding_config_file}:
-          # Track the generated folding configuration via Git, not DVC
-          cache: false
   # Stage running the finn build of the dummy model configured in parameters
   build:
     # Command running a finn build of the model produced during setup
