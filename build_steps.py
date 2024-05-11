@@ -1,3 +1,5 @@
+# Copies (deep-copies) python objects
+import copy
 # YAML for loading experiment configurations
 import yaml
 # QONNX wrapper of ONNX model graphs
@@ -6,24 +8,38 @@ from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.custom_op.registry import getCustomOp
 # QONNX graph transformations for renaming and cleaning up
 from qonnx.transformation.general import (
+    Transformation,
     GiveUniqueNodeNames,
     GiveReadableTensorNames,
     RemoveUnusedTensors,
     RemoveStaticGraphInputs,
     GiveUniqueParameterTensors,
     ConvertDivToMul,
-    Transformation
+    ConvertSubToAdd
 )
+# Converts BatchNorm operation to affine transformation
+from qonnx.transformation.batchnorm_to_affine import BatchNormToAffine
 # QONNX graph transformations for inferring datatypes and shapes
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.transformation.infer_shapes import InferShapes
 from qonnx.transformation.infer_data_layouts import InferDataLayouts
+# QONNX cleanup transformations
+from qonnx.transformation.remove import RemoveIdentityOps
 # Precompute constant output nodes
 from qonnx.transformation.fold_constants import FoldConstants
 # Streamlining transformation: This is a collection of various transformations
-from finn.transformation.streamline import Streamline
+from finn.transformation.streamline import (
+    ConvertSignToThres, RoundAndClipThresholds
+)
 # Fuse/Absorb operations
-from finn.transformation.streamline.absorb import AbsorbAddIntoMultiThreshold
+from finn.transformation.streamline.absorb import (
+    AbsorbAddIntoMultiThreshold,
+    AbsorbSignBiasIntoMultiThreshold,
+    FactorOutMulSignMagnitude,
+    AbsorbMulIntoMultiThreshold,
+    Absorb1BitMulIntoMatMul,
+    Absorb1BitMulIntoConv
+)
 # Reorder operations
 from finn.transformation.streamline.reorder import (
     MoveMulPastFork,
@@ -32,11 +48,18 @@ from finn.transformation.streamline.reorder import (
     MoveLinearPastEltwiseAdd,
     MoveScalarLinearPastInvariants,
     MoveTransposePastEltwise,
+    MoveMulPastMaxPool,
+    MoveAddPastMul,
+    MoveScalarAddPastMatMul,
+    MoveAddPastConv,
+    MoveScalarMulPastMatMul,
+    MoveScalarMulPastConv,
 )
 # Collapse consecutive operations of the same type
 from finn.transformation.streamline.collapse_repeated import (
     CollapseRepeatedMul,
-    CollapseRepeatedTranspose
+    CollapseRepeatedTranspose,
+    CollapseRepeatedAdd
 )
 # FINN transformation converting ONNX nodes to hardware custom operators
 from finn.transformation.fpgadataflow.convert_to_hw_layers import (
@@ -92,6 +115,81 @@ from finn.transformation.fpgadataflow.prepare_ip import PrepareIP
 from finn.transformation.fpgadataflow.set_exec_mode import SetExecMode
 
 
+# Composes graph transformations such that each individual transformation as
+# well as the whole sequence is applied exhaustively
+class ComposedTransformation(Transformation):
+    # Initializes the transformation given a list of transformations
+    def __init__(self, transformations: list[Transformation]):
+        # Initialize the transformation base class
+        super().__init__()
+        # Register the list of transformations to be applied in apply()
+        self.transformations = transformations
+
+    # Applies the transform to a whole model graph
+    def apply(self, model: ModelWrapper):  # noqa
+        # Keep track of whether the graph has been modified
+        graph_modified = False
+        # Iterate all transformations to be applied
+        for transformation in self.transformations:
+            # Start each transformation on a deep copy of the model to mimic the
+            # behavior of ModelWrapper.transform()
+            model = copy.deepcopy(model)
+            # Exhaustively apply the transformation until it no longer modifies
+            # the graph
+            while True:
+                # Apply the transformation once, reporting back whether any node
+                # or pattern has been modified
+                model, _graph_modified = transformation.apply(model)
+                # Keep track whether the graph has been modified at least once
+                graph_modified = graph_modified or _graph_modified
+                # Break the loop if this transformation did not change anything
+                if not _graph_modified:
+                    break
+            # Apply the cleanup transformations of the ModelWrapper
+            model.cleanup()
+            # Apply some further cleanup transformations to the model graph
+            # removing some clutter and keeping all names readable and ordered
+            # at any time
+            model = model.transform(RemoveIdentityOps())
+            model = model.transform(GiveUniqueNodeNames())
+            model = model.transform(GiveReadableTensorNames())
+            model = model.transform(InferDataTypes())
+        # Return the transformed model and indicate whether the graph actually
+        # has been transformed by at least one transformation so the whole
+        # sequence of transformations will be reapplied
+        return model, graph_modified
+
+
+# Custom Streamlining transformation: Similar to the built-in transformations
+# but exhaustively reapplied until none of the transformations can be applied
+# anymore.
+def Streamline():  # noqa: Uppercase
+    return ComposedTransformation([
+        ConvertSubToAdd(),
+        ConvertDivToMul(),
+        BatchNormToAffine(),
+        ConvertSignToThres(),
+        MoveMulPastMaxPool(),
+        AbsorbSignBiasIntoMultiThreshold(),
+        MoveScalarLinearPastInvariants(),
+        MoveAddPastMul(),
+        MoveScalarAddPastMatMul(),
+        MoveAddPastConv(),
+        MoveScalarMulPastMatMul(),
+        MoveScalarMulPastConv(),
+        MoveAddPastMul(),
+        CollapseRepeatedAdd(),
+        CollapseRepeatedMul(),
+        MoveMulPastMaxPool(),
+        AbsorbAddIntoMultiThreshold(),
+        FactorOutMulSignMagnitude(),
+        AbsorbMulIntoMultiThreshold(),
+        Absorb1BitMulIntoMatMul(),
+        Absorb1BitMulIntoConv(),
+        RoundAndClipThresholds(),
+    ])
+
+
 # Function running transformations necessary to clean up models containing
 # attention operators
 def step_tidy_up_pre_attention(model: ModelWrapper, _):
@@ -120,22 +218,19 @@ def step_tidy_up_pre_attention(model: ModelWrapper, _):
 
 # Variant of streamlining transformations adapted to attention operators
 def step_streamline_attention(model: ModelWrapper, cfg: DataflowBuildConfig):
-    # Apply the set of standard streamlining transformations from finn to the
-    # model
-    model = model.transform(Streamline())
-    # We need a custom streamlining step to enable streamlining through certain
-    # fork-nodes Note: This transform is part of finn, but not included in the
-    # standard streamlining transformations
-    model = model.transform(MoveLinearPastFork())
-    # Streamline again there should be more transformations enabled after moving
-    # some nodes past forks
-    model = model.transform(Streamline())
-    # Streamline again there should be more transformations enabled after moving
-    # some nodes past forks
-    model = model.transform(Streamline())
-    # Streamline again there should be more transformations enabled after moving
-    # some nodes past forks
-    model = model.transform(Streamline())
+    # Exhaustively apply the pattern of streamlining and moving past fork-nodes
+    model = model.transform(ComposedTransformation([
+        # Apply the set of standard streamlining transformations from finn to
+        # the model
+        Streamline(),
+        # We need a custom streamlining step to enable streamlining through
+        # certain fork-nodes Note: This transform is part of finn, but not
+        # included in the standard streamlining transformations
+        MoveLinearPastFork(),
+        # Streamline again there should be more transformations enabled after
+        # moving some nodes past forks
+        Streamline(),
+    ]))
 
     # If configured, run a verification of the transformed model on some sample
     # inputs
@@ -151,22 +246,18 @@ def step_streamline_attention(model: ModelWrapper, cfg: DataflowBuildConfig):
 
 # Streamlining transformations to be applied to residual branches
 def step_streamline_residual(model: ModelWrapper, cfg: DataflowBuildConfig):
-    # Streamline the residual connections by moving scale factors past
-    # elementwise add nodes
-    model = model.transform(MoveLinearPastEltwiseAdd())  # noqa: Duplicate
-    model = model.transform(MoveLinearPastFork())
-    model = model.transform(MoveScalarLinearPastInvariants())
-    # Do the normal streamlining flow once again
-    model = model.transform(Streamline())
-    # Streamline the residual connections by moving scale factors past
-    # elementwise add nodes again
-    #   TODO: We probably need one round of these streamlining transformations
-    #    per transformer block...
-    model = model.transform(MoveLinearPastEltwiseAdd())
-    model = model.transform(MoveLinearPastFork())
-    model = model.transform(MoveScalarLinearPastInvariants())
-    # And again to get the last floating-point Mul absorbed into thresholds
-    model = model.transform(Streamline())
+    # Exhaustively apply the pattern for streamlining residual branches. This
+    # ensures streamlining to work for arbitrary many consecutive residual
+    # blocks, where one "round" of these transformations is required per block.
+    model = model.transform(ComposedTransformation([
+        # Streamline the residual connections by moving scale factors past
+        # elementwise add nodes
+        MoveLinearPastEltwiseAdd(),
+        MoveLinearPastFork(),
+        MoveScalarLinearPastInvariants(),
+        # Do the normal streamlining flow once again
+        Streamline(),
+    ]))
 
     # If configured, run a verification of the transformed model on some sample
     # inputs
@@ -182,38 +273,42 @@ def step_streamline_residual(model: ModelWrapper, cfg: DataflowBuildConfig):
 
 # Streamlining transformation to be applied to the normalization layers
 def step_streamline_norms(model: ModelWrapper, cfg: DataflowBuildConfig):
-    # Streamline transposed batch normalization (move transposes past the
-    # scale-bias operator, so they can be collapsed afterward)
-    model = model.transform(MoveTransposePastEltwise())
-    # There should now be transposes next to each other which can be collapsed
-    model = model.transform(CollapseRepeatedTranspose())
-    # The transposes around the batch normalization should be collapsed by now
-    # and cancel each other out
-    model = model.transform(RemoveIdentityTranspose())
-    # We now might have transpose operations accumulating in front of fork nodes
-    model = model.transform(MoveTransposePastFork())
-    model = model.transform(MoveTransposePastEltwise())
-    model = model.transform(CollapseRepeatedTranspose())
-    model = model.transform(RemoveIdentityTranspose())
-    # This needs to be done twice, as per block there is one fork to the
-    # residual branch and one fork into the queries, keys and values input.
-    model = model.transform(MoveTransposePastFork())
-    model = model.transform(MoveTransposePastEltwise())
-    model = model.transform(CollapseRepeatedTranspose())
-    model = model.transform(RemoveIdentityTranspose())
-    # This might have caused the normalization scale and bias to accumulate in
-    # front of transpose or fork node
-    model = model.transform(MoveLinearPastEltwiseAdd())  # noqa: Duplicate
-    model = model.transform(MoveLinearPastFork())
-    model = model.transform(MoveScalarLinearPastInvariants())
-    # This might have enabled more streamlining transformations
-    model = model.transform(Streamline())
-    # We need a custom streamlining step to enable streamlining through certain
-    # fork-nodes Note: This transform is part of finn, but not included in the
-    # standard streamlining transformations
-    model = model.transform(MoveLinearPastFork())
-    # This might have enabled more streamlining transformations
-    model = model.transform(Streamline())
+    # Exhaustively apply the pattern for streamlining norms. This ensures
+    # streamlining to work for arbitrary many consecutive blocks, where one
+    # round of these transformations is required per block.
+    model = model.transform(ComposedTransformation([
+        # Streamline transposed batch normalization (move transposes past the
+        # scale-bias operator, so they can be collapsed afterward)
+        MoveTransposePastEltwise(),
+        # There should now be transposes next to each other which can be
+        # collapsed
+        CollapseRepeatedTranspose(),
+        # The transposes around the batch normalization should be collapsed by
+        # now and cancel each other out
+        RemoveIdentityTranspose(),
+        # Nested, exhaustive compositions of transformations
+        ComposedTransformation([
+            # We now might have transpose operations accumulating in front of
+            # fork nodes
+            MoveTransposePastFork(),
+            MoveTransposePastEltwise(),
+            CollapseRepeatedTranspose(),
+            RemoveIdentityTranspose(),
+        ]),
+        # This might have caused the normalization scale and bias to accumulate
+        # in front of transpose or fork node
+        MoveLinearPastEltwiseAdd(),
+        MoveLinearPastFork(),
+        MoveScalarLinearPastInvariants(),
+        # This might have enabled more streamlining transformations
+        Streamline(),
+        # We need a custom streamlining step to enable streamlining through
+        # certain fork-nodes Note: This transform is part of finn, but not
+        # included in the standard streamlining transformations
+        MoveLinearPastFork(),
+        # This might have enabled more streamlining transformations
+        Streamline(),
+    ]))
 
     # If configured, run a verification of the transformed model on some sample
     # inputs
@@ -303,11 +398,15 @@ def step_tidy_up_post_attention(model: ModelWrapper, _):
     model = model.transform(AbsorbMultiThresholdIntoScaledDotProductAttention())
 
     # Squeezing might enable some more streamlining transformations once again
-    model = model.transform(MoveLinearPastEltwiseAdd())  # noqa: Duplicate
-    model = model.transform(MoveLinearPastFork())
-    model = model.transform(MoveScalarLinearPastInvariants())
-    # Do the normal streamlining flow once again
-    model = model.transform(Streamline())
+    model = model.transform(ComposedTransformation([
+        # Streamline the residual connections by moving scale factors past
+        # elementwise add nodes
+        MoveLinearPastEltwiseAdd(),
+        MoveLinearPastFork(),
+        MoveScalarLinearPastInvariants(),
+        # Do the normal streamlining flow once again
+        Streamline(),
+    ]))
 
     # Clean up the names for debugging
     model = model.transform(GiveUniqueNodeNames())

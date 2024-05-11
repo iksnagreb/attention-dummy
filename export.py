@@ -70,10 +70,16 @@ if __name__ == "__main__":
     # Get the configured sequence length and embedding dimension to generate
     # test inputs
     seq, dim = params["model"]["seq_len"], params["model"]["emb_dim"]
-    # Pass random data through the model to "calibrate" dummy quantizer. Large
-    # batch to have more calibration samples. Otherwise, there is too much
-    # deviation between this calibration and the verification samples.
-    model(torch.rand(16384, seq, dim))
+    # No gradient accumulation for calibration passes required
+    with torch.no_grad():
+        # Multiple passes of calibration might be necessary for larger/deep
+        # models
+        for _ in range(params["calibration_passes"]):
+            # Pass random data through the model to "calibrate" dummy quantizer.
+            # Large batch to have more calibration samples. Otherwise, there is
+            # too much deviation between this calibration and the verification
+            # samples.
+            model(torch.rand(16384, seq, dim))
     # Prevent export issue for missing affine normalization parameters
     model = patch_non_affine_norms(model)
     # Switch model to evaluation mode to have it fixed for export

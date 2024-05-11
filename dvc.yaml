@@ -16,6 +16,7 @@ stages:
       - model
       - export
       - seed
+      - calibration_passes
     # Outputs produced by this stage which should be tracked and passed on to
     # the next stage
     outs:
