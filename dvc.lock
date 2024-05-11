@@ -182,3 +182,23 @@ stages:
       hash: md5
       md5: 06ee08cf2900925414fe100e2f3cdb80
       size: 105
+  verify:
+    cmd: python -m verify
+    deps:
+    - path: build/verification_output/
+      hash: md5
+      md5: d2f36d111838df316640e843bb35f6a8.dir
+      size: 9216
+      nfiles: 8
+    - path: verify.py
+      hash: md5
+      md5: 2cbebda1e941ed0be91b40ea513c8b8d
+      size: 971
+    params:
+      params.yaml:
+        build.output_dir: build
+    outs:
+    - path: verification.yaml
+      hash: md5
+      md5: 5224a3f087dfdd2bec5b236e4205ac3c
+      size: 22

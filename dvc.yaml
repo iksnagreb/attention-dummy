@@ -87,3 +87,23 @@ stages:
       - metrics.yaml:
           # Keep the metrics tracked by git
           cache: false
+  # Stage checking the verification output of the FINN dataflow build
+  verify:
+    # Command summarizing verification outputs from the build output products
+    cmd: python -m verify
+    # Dependencies of this stage to determine when it needs to be rerun
+    deps:
+      # The script executing the stage
+      - verify.py
+      # The output products of the previous stage
+      - ${build.output_dir}/verification_output/
+    # Parameters used by this stage
+    params:
+      # Track the build section from the parameters file
+      - build.output_dir
+    # Produces metrics as output
+    metrics:
+      # Track all metrics in this file
+      - verification.yaml:
+          # Keep the output tracked by git
+          cache: false
