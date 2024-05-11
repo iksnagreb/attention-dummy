@@ -1,1 +1,0 @@
-{"Defaults": {"ram_style": ["auto", ["StreamingFIFO_hls", "StreamingFIFO_rtl", "MVAU_hls", "MVAU_rtl"]]}}
