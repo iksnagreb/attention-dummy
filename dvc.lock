@@ -92,7 +92,7 @@ stages:
       folding.yaml:
         defaults:
           MVAU_hls:
-            resType: auto
+            resType: dsp
             mem_mode: internal_decoupled
             ram_style: auto
             ram_style_thresholds: auto
@@ -118,16 +118,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 2fd36715dcf0c7f7469abb4329c9d61c.dir
-      size: 92205106
+      md5: ccca398d1abea5c8b2835035bb17534b.dir
+      size: 92205137
       nfiles: 911
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 2fd36715dcf0c7f7469abb4329c9d61c.dir
-      size: 92205106
+      md5: ccca398d1abea5c8b2835035bb17534b.dir
+      size: 92205137
       nfiles: 911
     - path: build/report/post_synth_resources.json
       hash: md5

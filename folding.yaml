@@ -4,7 +4,7 @@ defaults:
   MVAU_hls:
     # Resource type to be used for implementing multiplications/MACs
     #   Options: auto, lut or dsp
-    resType: auto
+    resType: dsp
     # Memory mode for weight storage
     #   Options: internal_embedded, internal_decoupled, external
     mem_mode: internal_decoupled
