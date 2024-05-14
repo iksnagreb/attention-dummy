@@ -10,10 +10,12 @@ defaults:
     mem_mode: internal_decoupled
     # Type of memory to be used for weight storage if "internal_decoupled"
     #   Options: auto, block, distributed, ultra
-    ram_style: auto
+    ram_style: distributed
     # Type of memory to be used for threshold storage
     #   Options: auto, block, distributed
-    ram_style_thresholds: auto
+    ram_style_thresholds: distributed
+    # Makes weights writeable through AXI-lite interface at runtime
+    runtime_writeable_weights: 0
   # Matrix vector activation unit implemented via RTL
   MVAU_rtl:
     # Resource type to be used for implementing multiplications/MACs
@@ -25,7 +27,9 @@ defaults:
     mem_mode: internal_decoupled
     # Type of memory to be used for weight storage if "internal_decoupled"
     #   Options: auto, block, distributed, ultra
-    ram_style: auto
+    ram_style: distributed
+    # Makes weights writeable through AXI-lite interface at runtime
+    runtime_writeable_weights: 0
   # Multi-thresholds implemented via HLS (applies to standalone thresholds)
   Thresholding_hls:
     # Memory mode for threshold storage
@@ -34,8 +38,26 @@ defaults:
     # Type of memory to be used for threshold storage if "internal_decoupled"
     #   Options: distributed, block
     ram_style: distributed
+    # Makes thresholds writeable through AXI-lite interface at runtime
+    runtime_writeable_weights: 0
   # Multi-thresholds implemented via RTL (applies to standalone thresholds)
-  Thresholding_rtl: {}
+  Thresholding_rtl:
+    # Decides to use BRAM, URAM or LUTs for threshold memory, depending on the
+    # depth of the thresholds
+    # Note: This combination forces "distributed" LUT implementation
+    depth_trigger_uram: 4294967295  # "infinity"
+    depth_trigger_bram: 4294967295  # "infinity"
+#    # Note: This combination forces "block" RAM implementation
+#    depth_trigger_uram: 0
+#    depth_trigger_bram: 1
+#    # Note: This combination forces "ultra" RAM implementation
+#    depth_trigger_uram: 1
+#    depth_trigger_bram: 0
+#    # Note: THis combination is equivalent to "auto"
+#    depth_trigger_uram: 0
+#    depth_trigger_bram: 0
+    # Makes thresholds writeable through AXI-lite interface at runtime
+    runtime_writeable_weights: 0
   # FIFO implemented via RTL (there is no HLS FIFO implementation in FINN)
   StreamingFIFO_rtl:
     # RTL vs. IPI implementation of FIFOs
@@ -43,6 +65,6 @@ defaults:
     impl_style: rtl
     # Resource type for FIFOs when impl_style is vivado
     #   Options: auto, block, distributed, ultra
-    ram_style: auto
+    ram_style: distributed
 # Individual, named node-specific configurations here
 # ...

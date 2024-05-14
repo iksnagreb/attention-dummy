@@ -94,19 +94,25 @@ stages:
           MVAU_hls:
             resType: dsp
             mem_mode: internal_decoupled
-            ram_style: auto
-            ram_style_thresholds: auto
+            ram_style: distributed
+            ram_style_thresholds: distributed
+            runtime_writeable_weights: 0
           MVAU_rtl:
             resType: dsp
             mem_mode: internal_decoupled
-            ram_style: auto
+            ram_style: distributed
+            runtime_writeable_weights: 0
           Thresholding_hls:
             mem_mode: internal_decoupled
             ram_style: distributed
-          Thresholding_rtl: {}
+            runtime_writeable_weights: 0
+          Thresholding_rtl:
+            depth_trigger_uram: 4294967295
+            depth_trigger_bram: 4294967295
+            runtime_writeable_weights: 0
           StreamingFIFO_rtl:
             impl_style: rtl
-            ram_style: auto
+            ram_style: distributed
       specialize_layers.json:
         '':
           preferred_impl_style: ''
@@ -118,20 +124,20 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: ccca398d1abea5c8b2835035bb17534b.dir
-      size: 92205137
+      md5: fb53b152e470fffc9751eb3605b81ad0.dir
+      size: 91975422
       nfiles: 911
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: ccca398d1abea5c8b2835035bb17534b.dir
-      size: 92205137
+      md5: fb53b152e470fffc9751eb3605b81ad0.dir
+      size: 91975422
       nfiles: 911
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: c107f30f2f44a42a5390a2093349cb0b
+      md5: d3d649b0c495ff737fd6e393e61fb16e
       size: 12321
     - path: metrics.py
       hash: md5
@@ -146,7 +152,7 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: f4da4dee5608148074882f5c3e45819e
+      md5: a9a0707cf12b9be546399e039593b801
       size: 71
   folding:
     cmd: python -m make_folding
