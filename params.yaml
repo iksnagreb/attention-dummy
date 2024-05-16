@@ -59,7 +59,7 @@ build:
 #  # Optional: Start the build from a specific step
 #  start_step: "step_tidy_up_pre_attention"
 #  # Optional: Stop the build after a specific step
-#  stop_step: "step_hls_ipgen"
+#  stop_step: "step_hw_ipgen"
 # Metrics aggregation configuration
 metrics:
   # Path to the report file to be summarized
