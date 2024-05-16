@@ -32,7 +32,7 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: d5df786a2c5a1ee126e672a31f9a520f
+      md5: d936e51ccfca1152f94f1635014cdb69
       size: 38801
     - path: inp.npy
       hash: md5
@@ -47,7 +47,7 @@ stages:
     deps:
     - path: attention.onnx
       hash: md5
-      md5: d5df786a2c5a1ee126e672a31f9a520f
+      md5: d936e51ccfca1152f94f1635014cdb69
       size: 38801
     - path: build.py
       hash: md5
@@ -91,6 +91,10 @@ stages:
         seed: 12
       folding.yaml:
         defaults:
+          ScaledDotProductAttention_hls:
+            ram_style: distributed
+            ram_style_thresholds: distributed
+            mac_resource: dsp
           MVAU_hls:
             resType: dsp
             mem_mode: internal_decoupled
@@ -124,20 +128,20 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: fb53b152e470fffc9751eb3605b81ad0.dir
-      size: 91975422
-      nfiles: 911
+      md5: 7aae70be8259b2dc55a4bf975a78b354.dir
+      size: 92213114
+      nfiles: 909
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: fb53b152e470fffc9751eb3605b81ad0.dir
-      size: 91975422
-      nfiles: 911
+      md5: 7aae70be8259b2dc55a4bf975a78b354.dir
+      size: 92213114
+      nfiles: 909
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: d3d649b0c495ff737fd6e393e61fb16e
+      md5: 38b7436581bbf05a7f44c93d8a16dca9
       size: 12321
     - path: metrics.py
       hash: md5
@@ -152,7 +156,7 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: a9a0707cf12b9be546399e039593b801
+      md5: d331eefec28c984f7b371424b053a61b
       size: 71
   folding:
     cmd: python -m make_folding

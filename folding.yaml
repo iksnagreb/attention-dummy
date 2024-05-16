@@ -1,5 +1,16 @@
 # Per operator type default configurations
 defaults:
+  # Scaled dot-product attention head implemented via HLS
+  ScaledDotProductAttention_hls:
+    # Type of memory to be used for internal buffer storage
+    #   Options: auto, block, distributed, ultra
+    ram_style: distributed
+    # Type of memory to be used for threshold storage
+    #   Options: auto, block, distributed
+    ram_style_thresholds: distributed
+    # Resource type to be used for implementing multiplications/MACs
+    #   Options: auto, lut or dsp
+    mac_resource: dsp
   # Matrix vector activation unit implemented via HLS
   MVAU_hls:
     # Resource type to be used for implementing multiplications/MACs
@@ -53,7 +64,7 @@ defaults:
 #    # Note: This combination forces "ultra" RAM implementation
 #    depth_trigger_uram: 1
 #    depth_trigger_bram: 0
-#    # Note: THis combination is equivalent to "auto"
+#    # Note: This combination is equivalent to "auto"
 #    depth_trigger_uram: 0
 #    depth_trigger_bram: 0
     # Makes thresholds writeable through AXI-lite interface at runtime
