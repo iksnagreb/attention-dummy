@@ -95,6 +95,8 @@ stages:
             ram_style: distributed
             ram_style_thresholds: distributed
             mac_resource: dsp
+          ElementwiseAdd_hls:
+            ram_style: distributed
           MVAU_hls:
             resType: dsp
             mem_mode: internal_decoupled
@@ -111,8 +113,8 @@ stages:
             ram_style: distributed
             runtime_writeable_weights: 0
           Thresholding_rtl:
-            depth_trigger_uram: 4294967295
-            depth_trigger_bram: 4294967295
+            depth_trigger_uram: 2147483647
+            depth_trigger_bram: 2147483647
             runtime_writeable_weights: 0
           StreamingFIFO_rtl:
             impl_style: rtl
@@ -128,16 +130,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 3a8a903f18f4de6bdb17f803518a3fc4.dir
-      size: 92458152
+      md5: 34a607b6059708b52dd40eb2e85ee4c1.dir
+      size: 92461076
       nfiles: 936
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 3a8a903f18f4de6bdb17f803518a3fc4.dir
-      size: 92458152
+      md5: 34a607b6059708b52dd40eb2e85ee4c1.dir
+      size: 92461076
       nfiles: 936
     - path: build/report/post_synth_resources.json
       hash: md5

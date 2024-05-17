@@ -11,6 +11,12 @@ defaults:
     # Resource type to be used for implementing multiplications/MACs
     #   Options: auto, lut or dsp
     mac_resource: dsp
+  # Addition of two inputs (constants or streamed) implemented via HLS
+  ElementwiseAdd_hls:
+    # Type of memory to be used for internal buffer storage and/or constant
+    # parameter tensors
+    #   Options: auto, block, distributed, ultra
+    ram_style: distributed
   # Matrix vector activation unit implemented via HLS
   MVAU_hls:
     # Resource type to be used for implementing multiplications/MACs
@@ -56,8 +62,8 @@ defaults:
     # Decides to use BRAM, URAM or LUTs for threshold memory, depending on the
     # depth of the thresholds
     # Note: This combination forces "distributed" LUT implementation
-    depth_trigger_uram: 4294967295  # "infinity"
-    depth_trigger_bram: 4294967295  # "infinity"
+    depth_trigger_uram: 2147483647  # "infinity"
+    depth_trigger_bram: 2147483647  # "infinity"
 #    # Note: This combination forces "block" RAM implementation
 #    depth_trigger_uram: 0
 #    depth_trigger_bram: 1
