@@ -424,7 +424,7 @@ def step_tidy_up_post_attention(model: ModelWrapper, _):
 # Custom step for setting the parallelism to meet the target of T^2 cycles per
 # sequence
 def set_target_parallelization(seq_len: int,
-                                    emb_dim: int):  # noqa: emb_dim
+                               emb_dim: int):  # noqa: emb_dim
     # The wrapping function is a generator and this is the actual build step
     # function taking the model and build configuration
     def step_set_target_parallelization(
@@ -568,7 +568,9 @@ def set_fifo_depths(seq_len: int, emb_dim: int):  # noqa: emb_dim
         # no other depth is specified)
         model = model.transform(InsertFIFO(create_shallow_fifos=True))
         # Specialize the implementation variant of the (newly added FIFO) layers
-        model = model.transform(SpecializeLayers())
+        model = model.transform(
+            SpecializeLayers(cfg._resolve_fpga_part())  # noqa: Access _ method
+        )
         model = model.transform(GiveUniqueNodeNames())
         model = model.transform(GiveReadableTensorNames())
 
