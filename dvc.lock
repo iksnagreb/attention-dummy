@@ -84,8 +84,8 @@ stages:
           folding_config_file: folding.yaml
           specialize_layers_config_file: specialize_layers.json
           standalone_thresholds: true
-          max_multithreshold_bit_width: 8
-          mvau_wwidth_max: 36
+          max_multithreshold_bit_width: 16
+          mvau_wwidth_max: 512
         model.emb_dim: 8
         model.seq_len: 32
         seed: 12
@@ -130,16 +130,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 858eff3ae39921cb8b21a63e04daada4.dir
-      size: 93108308
+      md5: 6e671a769520e9a1077dbae32e775872.dir
+      size: 93063575
       nfiles: 942
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 858eff3ae39921cb8b21a63e04daada4.dir
-      size: 93108308
+      md5: 6e671a769520e9a1077dbae32e775872.dir
+      size: 93063575
       nfiles: 942
     - path: build/report/post_synth_resources.json
       hash: md5

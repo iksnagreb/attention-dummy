@@ -53,9 +53,9 @@ build:
   # implementation of the MVU
   standalone_thresholds: True
   # Maximum bit-width of quantizers converted to multi-thresholds
-  max_multithreshold_bit_width: 8
+  max_multithreshold_bit_width: 16
   # Maximum width of MVAU stream per PE
-  mvau_wwidth_max: 36
+  mvau_wwidth_max: 512
 #  # Optional: Start the build from a specific step
 #  start_step: "step_tidy_up_pre_attention"
 #  # Optional: Stop the build after a specific step
