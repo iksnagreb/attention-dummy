@@ -154,12 +154,12 @@ stages:
         build.output_dir: build
         metrics:
           report: build/report/post_synth_resources.json
-          filter: (top)
+          filter: IODMA
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 3bd87eda83135a7f6728c1126a70f1d2
-      size: 71
+      md5: b9f913ad1da3fb58e0874fc77bc87e63
+      size: 67
   folding:
     cmd: python -m make_folding
     deps:
