@@ -10,7 +10,7 @@ defaults:
     ram_style_thresholds: distributed
     # Resource type to be used for implementing multiplications/MACs
     #   Options: auto, lut or dsp
-    mac_resource: dsp
+    mac_resource: lut
   # Addition of two inputs (constants or streamed) implemented via HLS
   ElementwiseAdd_hls:
     # Type of memory to be used for internal buffer storage and/or constant
