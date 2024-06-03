@@ -4,7 +4,7 @@ defaults:
   ScaledDotProductAttention_hls:
     # Type of memory to be used for internal buffer storage
     #   Options: auto, block, distributed, ultra
-    ram_style: distributed
+    ram_style: block
     # Type of memory to be used for threshold storage
     #   Options: auto, block, distributed
     ram_style_thresholds: distributed
