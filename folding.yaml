@@ -16,7 +16,7 @@ defaults:
     # Type of memory to be used for internal buffer storage and/or constant
     # parameter tensors
     #   Options: auto, block, distributed, ultra
-    ram_style: distributed
+    ram_style: block
   # Matrix vector activation unit implemented via HLS
   MVAU_hls:
     # Resource type to be used for implementing multiplications/MACs
