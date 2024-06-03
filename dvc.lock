@@ -98,9 +98,9 @@ stages:
           ElementwiseAdd_hls:
             ram_style: distributed
           MVAU_hls:
-            resType: dsp
+            resType: lut
             mem_mode: internal_decoupled
-            ram_style: distributed
+            ram_style: block
             ram_style_thresholds: distributed
             runtime_writeable_weights: 0
           MVAU_rtl:
@@ -124,27 +124,26 @@ stages:
           preferred_impl_style: ''
         Defaults:
           preferred_impl_style:
-          - rtl
+          - hls
           - - MVAU
-            - Thresholding
     outs:
     - path: build/
       hash: md5
-      md5: 6e671a769520e9a1077dbae32e775872.dir
-      size: 93063575
-      nfiles: 942
+      md5: 0ad71a62abf2c1fc98c5e933ba034ab8.dir
+      size: 92886411
+      nfiles: 972
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 6e671a769520e9a1077dbae32e775872.dir
-      size: 93063575
-      nfiles: 942
+      md5: 0ad71a62abf2c1fc98c5e933ba034ab8.dir
+      size: 92886411
+      nfiles: 972
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 64358a8f25ef096350fe0d33a022f252
-      size: 12321
+      md5: 3c7086015f14ff5bfa838a962f25e914
+      size: 12329
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -154,12 +153,12 @@ stages:
         build.output_dir: build
         metrics:
           report: build/report/post_synth_resources.json
-          filter: (top)
+          filter: MVAU_hls
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 3bd87eda83135a7f6728c1126a70f1d2
-      size: 71
+      md5: 04b7de802fde3cc4b90616e307c2db18
+      size: 65
   folding:
     cmd: python -m make_folding
     deps:
@@ -199,7 +198,7 @@ stages:
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 2bd3f72d2c765376271096e7d0b432d3.dir
+      md5: 955dd19e92afa4364e50bc0105af70ce.dir
       size: 292300
       nfiles: 10
     - path: verify.py
