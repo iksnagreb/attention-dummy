@@ -154,12 +154,12 @@ stages:
         build.output_dir: build
         metrics:
           report: build/report/post_synth_resources.json
-          filter: (top)
+          filter: ScaledDotProductAttention_hls
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 3bd87eda83135a7f6728c1126a70f1d2
-      size: 71
+      md5: df8654e8a313fc647e32d2e4e52dd915
+      size: 68
   folding:
     cmd: python -m make_folding
     deps:
