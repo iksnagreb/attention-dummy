@@ -126,20 +126,19 @@ stages:
           preferred_impl_style:
           - rtl
           - - MVAU
-            - Thresholding
     outs:
     - path: build/
       hash: md5
-      md5: 6e671a769520e9a1077dbae32e775872.dir
-      size: 93063575
+      md5: cee1b3c50ae1bab416556bbfa7ac8184.dir
+      size: 93063578
       nfiles: 942
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 6e671a769520e9a1077dbae32e775872.dir
-      size: 93063575
+      md5: cee1b3c50ae1bab416556bbfa7ac8184.dir
+      size: 93063578
       nfiles: 942
     - path: build/report/post_synth_resources.json
       hash: md5
@@ -154,12 +153,12 @@ stages:
         build.output_dir: build
         metrics:
           report: build/report/post_synth_resources.json
-          filter: (top)
+          filter: MVAU_rtl
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 3bd87eda83135a7f6728c1126a70f1d2
-      size: 71
+      md5: 91ac8d7a80c65d0fd1c34aecb817f8f9
+      size: 64
   folding:
     cmd: python -m make_folding
     deps:
