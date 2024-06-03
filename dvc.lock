@@ -154,12 +154,12 @@ stages:
         build.output_dir: build
         metrics:
           report: build/report/post_synth_resources.json
-          filter: (top)
+          filter: StreamingDataWidthConverter
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 3bd87eda83135a7f6728c1126a70f1d2
-      size: 71
+      md5: 4f9343f7f6c454c78ed7f79435a39fe4
+      size: 62
   folding:
     cmd: python -m make_folding
     deps:
