@@ -113,8 +113,8 @@ stages:
             ram_style: distributed
             runtime_writeable_weights: 0
           Thresholding_rtl:
-            depth_trigger_uram: 2147483647
-            depth_trigger_bram: 2147483647
+            depth_trigger_uram: 0
+            depth_trigger_bram: 1
             runtime_writeable_weights: 0
           StreamingFIFO_rtl:
             impl_style: rtl
@@ -125,26 +125,25 @@ stages:
         Defaults:
           preferred_impl_style:
           - rtl
-          - - MVAU
-            - Thresholding
+          - - Thresholding
     outs:
     - path: build/
       hash: md5
-      md5: 6e671a769520e9a1077dbae32e775872.dir
-      size: 93063575
+      md5: 39270a476fec793ece57516996d36fe8.dir
+      size: 93068369
       nfiles: 942
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 6e671a769520e9a1077dbae32e775872.dir
-      size: 93063575
+      md5: 39270a476fec793ece57516996d36fe8.dir
+      size: 93068369
       nfiles: 942
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 64358a8f25ef096350fe0d33a022f252
-      size: 12321
+      md5: af9caed05a99ddb88fd675b07dc5c9c4
+      size: 12326
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -154,12 +153,12 @@ stages:
         build.output_dir: build
         metrics:
           report: build/report/post_synth_resources.json
-          filter: (top)
+          filter: Thresholding_rtl
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 3bd87eda83135a7f6728c1126a70f1d2
-      size: 71
+      md5: ad27b8fca1c5e4647a1b4f5733b4cf5d
+      size: 65
   folding:
     cmd: python -m make_folding
     deps:
