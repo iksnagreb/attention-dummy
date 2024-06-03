@@ -7,7 +7,7 @@ defaults:
     ram_style: distributed
     # Type of memory to be used for threshold storage
     #   Options: auto, block, distributed
-    ram_style_thresholds: distributed
+    ram_style_thresholds: block
     # Resource type to be used for implementing multiplications/MACs
     #   Options: auto, lut or dsp
     mac_resource: dsp
