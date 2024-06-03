@@ -24,7 +24,7 @@ defaults:
     resType: dsp
     # Memory mode for weight storage
     #   Options: internal_embedded, internal_decoupled, external
-    mem_mode: internal_decoupled
+    mem_mode: internal_embedded
     # Type of memory to be used for weight storage if "internal_decoupled"
     #   Options: auto, block, distributed, ultra
     ram_style: distributed
