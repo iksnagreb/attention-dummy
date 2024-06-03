@@ -154,12 +154,12 @@ stages:
         build.output_dir: build
         metrics:
           report: build/report/post_synth_resources.json
-          filter: (top)
+          filter: StreamingFIFO_rtl
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 3bd87eda83135a7f6728c1126a70f1d2
-      size: 71
+      md5: 5c88d812557b518e64239d1d8bf4842c
+      size: 66
   folding:
     cmd: python -m make_folding
     deps:
