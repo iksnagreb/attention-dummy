@@ -62,8 +62,8 @@ defaults:
     # Decides to use BRAM, URAM or LUTs for threshold memory, depending on the
     # depth of the thresholds
     # Note: This combination forces "distributed" LUT implementation
-    depth_trigger_uram: 2147483647  # "infinity"
-    depth_trigger_bram: 2147483647  # "infinity"
+    depth_trigger_uram: 0           # "infinity"
+    depth_trigger_bram: 1           # "infinity"
 #    # Note: This combination forces "block" RAM implementation
 #    depth_trigger_uram: 0
 #    depth_trigger_bram: 1
