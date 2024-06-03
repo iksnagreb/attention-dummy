@@ -124,27 +124,26 @@ stages:
           preferred_impl_style: ''
         Defaults:
           preferred_impl_style:
-          - rtl
+          - hls
           - - MVAU
-            - Thresholding
     outs:
     - path: build/
       hash: md5
-      md5: 6e671a769520e9a1077dbae32e775872.dir
-      size: 93063575
-      nfiles: 942
+      md5: d52223293b1f9e0e232f310d49348282.dir
+      size: 92983418
+      nfiles: 980
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 6e671a769520e9a1077dbae32e775872.dir
-      size: 93063575
-      nfiles: 942
+      md5: d52223293b1f9e0e232f310d49348282.dir
+      size: 92983418
+      nfiles: 980
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 64358a8f25ef096350fe0d33a022f252
-      size: 12321
+      md5: 9100cb6872780eb2ec46830b45502bb0
+      size: 12330
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -154,12 +153,12 @@ stages:
         build.output_dir: build
         metrics:
           report: build/report/post_synth_resources.json
-          filter: (top)
+          filter: MVAU_hls
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 3bd87eda83135a7f6728c1126a70f1d2
-      size: 71
+      md5: f485f60d18c5668af94e1d8c04608e6c
+      size: 66
   folding:
     cmd: python -m make_folding
     deps:
@@ -199,7 +198,7 @@ stages:
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 2bd3f72d2c765376271096e7d0b432d3.dir
+      md5: 955dd19e92afa4364e50bc0105af70ce.dir
       size: 292300
       nfiles: 10
     - path: verify.py
