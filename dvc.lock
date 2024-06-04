@@ -154,12 +154,12 @@ stages:
         build.output_dir: build
         metrics:
           report: build/report/post_synth_resources.json
-          filter: (top)
+          filter: SplitMultiHeads_hls
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 3bd87eda83135a7f6728c1126a70f1d2
-      size: 71
+      md5: 6f4d4e788edf111a48408546f4b6a3f8
+      size: 59
   folding:
     cmd: python -m make_folding
     deps:
