@@ -154,12 +154,12 @@ stages:
         build.output_dir: build
         metrics:
           report: build/report/post_synth_resources.json
-          filter: (top)
+          filter: ReplicateStream
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 3bd87eda83135a7f6728c1126a70f1d2
-      size: 71
+      md5: 322f2fe2c03f4b45c6b5ad2598ebed35
+      size: 63
   folding:
     cmd: python -m make_folding
     deps:
