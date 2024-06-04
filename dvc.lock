@@ -92,9 +92,9 @@ stages:
       folding.yaml:
         defaults:
           ScaledDotProductAttention_hls:
-            ram_style: distributed
-            ram_style_thresholds: distributed
-            mac_resource: dsp
+            ram_style: block
+            ram_style_thresholds: block
+            mac_resource: lut
           ElementwiseAdd_hls:
             ram_style: distributed
           MVAU_hls:
@@ -130,20 +130,20 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 6e671a769520e9a1077dbae32e775872.dir
-      size: 93063575
-      nfiles: 942
+      md5: aa2cb2be4672234706feba71099d3eaa.dir
+      size: 93057664
+      nfiles: 937
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 6e671a769520e9a1077dbae32e775872.dir
-      size: 93063575
-      nfiles: 942
+      md5: aa2cb2be4672234706feba71099d3eaa.dir
+      size: 93057664
+      nfiles: 937
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 64358a8f25ef096350fe0d33a022f252
+      md5: 98c52b807d4129b299f15e93fdfd4952
       size: 12321
     - path: metrics.py
       hash: md5
@@ -154,12 +154,12 @@ stages:
         build.output_dir: build
         metrics:
           report: build/report/post_synth_resources.json
-          filter: (top)
+          filter: ScaledDotProductAttention_hls
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 3bd87eda83135a7f6728c1126a70f1d2
-      size: 71
+      md5: e7c18aa770c29537c12ec9ceef8edd82
+      size: 68
   folding:
     cmd: python -m make_folding
     deps:
