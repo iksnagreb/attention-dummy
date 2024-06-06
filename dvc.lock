@@ -23,32 +23,32 @@ stages:
           bias: true
           emb_dim: 8
           mlp_dim: 32
-          seq_len: 32
+          seq_len: 128
           bits: 4
           norm: none
-          mask: none
+          mask: causal
           positional_encoding: binary
         seed: 12
     outs:
     - path: attention.onnx
       hash: md5
-      md5: d936e51ccfca1152f94f1635014cdb69
-      size: 38801
+      md5: 451f2b7bc4514b9f68c28e07aaf3c039
+      size: 107837
     - path: inp.npy
       hash: md5
-      md5: 96c1c414e1abf7e2f3a30e8230f35062
-      size: 1152
+      md5: fb3c595702cc34dfc9827e7869270415
+      size: 4224
     - path: out.npy
       hash: md5
-      md5: ae98150ff6e393446f7e0bccac9827a7
-      size: 1152
+      md5: d556dcc9de29c83b7bef34031d61c923
+      size: 4224
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
     deps:
     - path: attention.onnx
       hash: md5
-      md5: d936e51ccfca1152f94f1635014cdb69
-      size: 38801
+      md5: 451f2b7bc4514b9f68c28e07aaf3c039
+      size: 107837
     - path: build.py
       hash: md5
       md5: b690489b02e8bee2f5d5a4def027f8da
@@ -59,16 +59,16 @@ stages:
       size: 35611
     - path: inp.npy
       hash: md5
-      md5: 96c1c414e1abf7e2f3a30e8230f35062
-      size: 1152
+      md5: fb3c595702cc34dfc9827e7869270415
+      size: 4224
     - path: noctua.sh
       hash: md5
       md5: f3e8cc342b63cddcd2e07bfe63f6518c
       size: 1832
     - path: out.npy
       hash: md5
-      md5: ae98150ff6e393446f7e0bccac9827a7
-      size: 1152
+      md5: d556dcc9de29c83b7bef34031d61c923
+      size: 4224
     - path: run.sh
       hash: md5
       md5: 6e3e34149c16795c5a8424a51bdbf5f8
@@ -87,26 +87,26 @@ stages:
           max_multithreshold_bit_width: 16
           mvau_wwidth_max: 512
         model.emb_dim: 8
-        model.seq_len: 32
+        model.seq_len: 128
         seed: 12
       folding.yaml:
         defaults:
           ScaledDotProductAttention_hls:
-            ram_style: distributed
-            ram_style_thresholds: distributed
+            ram_style: block
+            ram_style_thresholds: block
             mac_resource: lut
           ElementwiseAdd_hls:
             ram_style: distributed
           MVAU_hls:
             resType: dsp
             mem_mode: internal_decoupled
-            ram_style: distributed
+            ram_style: block
             ram_style_thresholds: distributed
             runtime_writeable_weights: 0
           MVAU_rtl:
             resType: dsp
             mem_mode: internal_decoupled
-            ram_style: distributed
+            ram_style: block
             runtime_writeable_weights: 0
           Thresholding_hls:
             mem_mode: internal_decoupled
@@ -130,21 +130,21 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 9cfee3869689d9babc4ddd12d86b4352.dir
-      size: 93002073
-      nfiles: 937
+      md5: 1630993cbfb7eb31618425a1e904296c.dir
+      size: 93571367
+      nfiles: 881
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 9cfee3869689d9babc4ddd12d86b4352.dir
-      size: 93002073
-      nfiles: 937
+      md5: 1630993cbfb7eb31618425a1e904296c.dir
+      size: 93571367
+      nfiles: 881
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 235a598677493e524f600c3f3825343d
-      size: 12321
+      md5: 9eda11dbc5be9c5e7e0e94f6a3f6a360
+      size: 11270
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -158,8 +158,8 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 7bde099e94f570137ef079409f197912
-      size: 71
+      md5: c5b38ef5f190818db7e416b8d2c7ee15
+      size: 72
   folding:
     cmd: python -m make_folding
     deps:
@@ -199,8 +199,8 @@ stages:
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 2bd3f72d2c765376271096e7d0b432d3.dir
-      size: 292300
+      md5: f413be71c25c33e76acce42a489b9a53.dir
+      size: 865072
       nfiles: 10
     - path: verify.py
       hash: md5
