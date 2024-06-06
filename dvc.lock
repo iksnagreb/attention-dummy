@@ -24,7 +24,7 @@ stages:
           emb_dim: 8
           mlp_dim: 32
           seq_len: 32
-          bits: 4
+          bits: 6
           norm: none
           mask: none
           positional_encoding: binary
@@ -32,7 +32,7 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: d936e51ccfca1152f94f1635014cdb69
+      md5: a7e1283e00a61d3791757a0f94d4b866
       size: 38801
     - path: inp.npy
       hash: md5
@@ -40,14 +40,14 @@ stages:
       size: 1152
     - path: out.npy
       hash: md5
-      md5: ae98150ff6e393446f7e0bccac9827a7
+      md5: cb3e64a512bc45a4dd2f50588ae5fba3
       size: 1152
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
     deps:
     - path: attention.onnx
       hash: md5
-      md5: d936e51ccfca1152f94f1635014cdb69
+      md5: a7e1283e00a61d3791757a0f94d4b866
       size: 38801
     - path: build.py
       hash: md5
@@ -67,7 +67,7 @@ stages:
       size: 1832
     - path: out.npy
       hash: md5
-      md5: ae98150ff6e393446f7e0bccac9827a7
+      md5: cb3e64a512bc45a4dd2f50588ae5fba3
       size: 1152
     - path: run.sh
       hash: md5
@@ -130,21 +130,21 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 9cfee3869689d9babc4ddd12d86b4352.dir
-      size: 93002073
-      nfiles: 937
+      md5: d39b392bd9c2ecf55f43f98024043d7e.dir
+      size: 96240677
+      nfiles: 1134
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 9cfee3869689d9babc4ddd12d86b4352.dir
-      size: 93002073
-      nfiles: 937
+      md5: d39b392bd9c2ecf55f43f98024043d7e.dir
+      size: 96240677
+      nfiles: 1134
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 235a598677493e524f600c3f3825343d
-      size: 12321
+      md5: 3dc45d1e19487a5b497d5c5d30d6a0e3
+      size: 12349
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -158,7 +158,7 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 7bde099e94f570137ef079409f197912
+      md5: 843e181e822c2d32f45e3d362b1b96bc
       size: 71
   folding:
     cmd: python -m make_folding
@@ -199,8 +199,8 @@ stages:
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 2bd3f72d2c765376271096e7d0b432d3.dir
-      size: 292300
+      md5: ca57cce01f50860236863e4b2e53366d.dir
+      size: 350668
       nfiles: 10
     - path: verify.py
       hash: md5
@@ -212,5 +212,5 @@ stages:
     outs:
     - path: verification.yaml
       hash: md5
-      md5: 5224a3f087dfdd2bec5b236e4205ac3c
-      size: 22
+      md5: 8228a4d2ccfbff3d7a47c4e4d34aaad2
+      size: 19
