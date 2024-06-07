@@ -32,7 +32,7 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: d936e51ccfca1152f94f1635014cdb69
+      md5: eddbbbce0597d469a739c62d23b969d8
       size: 38801
     - path: inp.npy
       hash: md5
@@ -47,7 +47,7 @@ stages:
     deps:
     - path: attention.onnx
       hash: md5
-      md5: d936e51ccfca1152f94f1635014cdb69
+      md5: eddbbbce0597d469a739c62d23b969d8
       size: 38801
     - path: build.py
       hash: md5
@@ -92,21 +92,21 @@ stages:
       folding.yaml:
         defaults:
           ScaledDotProductAttention_hls:
-            ram_style: distributed
-            ram_style_thresholds: distributed
+            ram_style: block
+            ram_style_thresholds: block
             mac_resource: lut
           ElementwiseAdd_hls:
             ram_style: distributed
           MVAU_hls:
             resType: dsp
             mem_mode: internal_decoupled
-            ram_style: distributed
+            ram_style: block
             ram_style_thresholds: distributed
             runtime_writeable_weights: 0
           MVAU_rtl:
             resType: dsp
             mem_mode: internal_decoupled
-            ram_style: distributed
+            ram_style: block
             runtime_writeable_weights: 0
           Thresholding_hls:
             mem_mode: internal_decoupled
@@ -130,20 +130,20 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 9cfee3869689d9babc4ddd12d86b4352.dir
-      size: 93002073
+      md5: bc768627f39f4011bcc03191c4a94ecd.dir
+      size: 93221815
       nfiles: 937
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 9cfee3869689d9babc4ddd12d86b4352.dir
-      size: 93002073
+      md5: bc768627f39f4011bcc03191c4a94ecd.dir
+      size: 93221815
       nfiles: 937
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 235a598677493e524f600c3f3825343d
+      md5: 82f4ed567d0c1bcd47b7d62be83628db
       size: 12321
     - path: metrics.py
       hash: md5
@@ -158,8 +158,8 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 7bde099e94f570137ef079409f197912
-      size: 71
+      md5: 648e246b23a733226a0d7ee27ad79593
+      size: 72
   folding:
     cmd: python -m make_folding
     deps:
@@ -199,7 +199,7 @@ stages:
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 2bd3f72d2c765376271096e7d0b432d3.dir
+      md5: 990b48c660f7cdef6c2c8f67c2a72a86.dir
       size: 292300
       nfiles: 10
     - path: verify.py
