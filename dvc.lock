@@ -32,7 +32,7 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: d936e51ccfca1152f94f1635014cdb69
+      md5: d5df786a2c5a1ee126e672a31f9a520f
       size: 38801
     - path: inp.npy
       hash: md5
@@ -47,16 +47,16 @@ stages:
     deps:
     - path: attention.onnx
       hash: md5
-      md5: d936e51ccfca1152f94f1635014cdb69
+      md5: d5df786a2c5a1ee126e672a31f9a520f
       size: 38801
     - path: build.py
       hash: md5
-      md5: b690489b02e8bee2f5d5a4def027f8da
-      size: 6925
+      md5: 0d1ef6c7092b02893c2707fd537475bb
+      size: 7144
     - path: build_steps.py
       hash: md5
-      md5: ecaae63782309f26ebcf08cd984f6831
-      size: 35611
+      md5: f56efb14c433d3c11248dbe4e7c73436
+      size: 36692
     - path: inp.npy
       hash: md5
       md5: 96c1c414e1abf7e2f3a30e8230f35062
@@ -94,6 +94,7 @@ stages:
           ScaledDotProductAttention_hls:
             ram_style: distributed
             ram_style_thresholds: distributed
+            ram_style_mask: distributed
             mac_resource: lut
           ElementwiseAdd_hls:
             ram_style: distributed
@@ -130,17 +131,17 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 9cfee3869689d9babc4ddd12d86b4352.dir
-      size: 93002073
-      nfiles: 937
+      md5: faa9d90307b22632a7f56d32a4034c8e.dir
+      size: 93072995
+      nfiles: 938
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 9cfee3869689d9babc4ddd12d86b4352.dir
-      size: 93002073
-      nfiles: 937
+      md5: faa9d90307b22632a7f56d32a4034c8e.dir
+      size: 93072995
+      nfiles: 938
     - path: build/report/post_synth_resources.json
       hash: md5
       md5: 235a598677493e524f600c3f3825343d

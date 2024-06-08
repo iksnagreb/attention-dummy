@@ -6,6 +6,8 @@ import numpy as np
 import yaml
 # QONNX wrapper of ONNX model graphs
 from qonnx.core.modelwrapper import ModelWrapper
+# QONNX quantization data types
+from qonnx.core.datatype import DataType
 # Converts ONNX graph nodes to QONNX custom-ops if possible
 from qonnx.custom_op.registry import getCustomOp
 # QONNX graph transformations for renaming and cleaning up
@@ -65,7 +67,8 @@ from finn.transformation.streamline.collapse_repeated import (
 )
 # FINN transformation converting ONNX nodes to hardware custom operators
 from finn.transformation.fpgadataflow.convert_to_hw_layers import (
-    InferElementwiseBinaryOperation
+    InferElementwiseBinaryOperation,
+    InferLookupLayer
 )
 # Remove some operations without real effect
 from finn.transformation.streamline.remove import (
@@ -384,6 +387,24 @@ def step_convert_elementwise_binary_to_hw(model: ModelWrapper, _):
     ))
 
 
+# Function running the transformations to convert Gather, i.e., index lookup,
+# nodes to their hardware implementations
+def step_convert_lookup_to_hw(model: ModelWrapper, _):
+    # Iterate all nodes in the graph keeping track of the index
+    for index, node in enumerate(model.graph.node):
+        # If this is a Gather node, force the input (index) type annotation
+        if node.op_type == "Gather":
+            # Force to unsigned 64-bit integer for now
+            model.set_tensor_datatype(node.input[1], DataType["UINT64"])
+            # Get the value info for the input tensor to have access to the ONNX
+            # datatype of the tensor
+            value_info = model.get_tensor_valueinfo(node.input[1])
+            # Force the container datatype of the input to be a float
+            value_info.type.tensor_type.elem_type = 1
+    # Convert Gather to Lookup layers
+    return model.transform(InferLookupLayer())
+
+
 # Function running the InferReplicateStream transformation
 def step_replicate_streams(model: ModelWrapper, _):
     # Properly replicate the stream feeding the query, key and value projections
@@ -593,9 +614,11 @@ def set_fifo_depths(seq_len: int, emb_dim: int):  # noqa: emb_dim
             "parallel_window",
             "ram_style",
             "ram_style_thresholds",
+            "ram_style_mask",
             "depth",
             "impl_style",
             "resType",
+            "mac_resource",
             "mem_mode",
             "runtime_writeable_weights",
             "inFIFODepths",

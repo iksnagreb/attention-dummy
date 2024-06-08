@@ -8,6 +8,9 @@ defaults:
     # Type of memory to be used for threshold storage
     #   Options: auto, block, distributed
     ram_style_thresholds: distributed
+    # Type of memory to be used fo the attention mask (if present)
+    #   Options: auto, block, distributed
+    ram_style_mask: distributed
     # Resource type to be used for implementing multiplications/MACs
     #   Options: auto, lut or dsp
     mac_resource: lut

@@ -19,6 +19,7 @@ from build_steps import (
     step_streamline_positional,
     step_convert_attention_to_hw,
     step_convert_elementwise_binary_to_hw,
+    step_convert_lookup_to_hw,
     step_replicate_streams,
     set_target_parallelization,
     set_fifo_depths,
@@ -108,6 +109,9 @@ if __name__ == "__main__":
             # These include for example adding residual branches and positional
             # encoding
             step_convert_elementwise_binary_to_hw,
+            # Convert the Gather layer realizing the input token embedding to
+            # the FINN hardware implementation, i.e., the Lookup layer
+            step_convert_lookup_to_hw,
             # Properly replicate the stream feeding the query, key and value
             # projections
             step_replicate_streams,

@@ -22,7 +22,7 @@ model:
   #   Options are: layer-norm, batch-norm and none
   norm: none
   # Type of attention mask to use
-  #   Options are: none, causal or const
+  #   Options are: none, causal or random
   mask: none
   # Type of positional encoding to use at the input
   #   Options are: none, sinusoidal, binary, learned
