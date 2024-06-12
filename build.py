@@ -135,13 +135,17 @@ if __name__ == "__main__":
             "step_hw_ipgen",
             # Set the attention- and residual-related FIFO depths insert FIFOs
             # and apply folding configuration once again
-            set_fifo_depths(seq_len, emb_dim),
+            # Note: Implement all FIFOs with a depth at least as deep as the
+            # sequence length in URAM.
+            set_fifo_depths(seq_len, emb_dim, uram_threshold=seq_len),
             # Run additional node-by-node verification in RTL simulation of the
             # model before creating the stitched IP
             # Note: end-to-end verification of the stitched IP in RTL simulation
             # is still not possible due to missing float IPs
             node_by_node_cppsim,
-            node_by_node_rtlsim,
+            # Only for debugging for now, does not work if "vivado" style
+            # StreamingFIFOs are used
+            # node_by_node_rtlsim,
             "step_create_stitched_ip",
             # Attention does currently not support RTL simulation due to missing
             # float IPs.

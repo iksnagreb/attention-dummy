@@ -1,7 +1,7 @@
 # Global seed to make evaluation reproducible
 seed: 12
 # Number of calibration passes to be applied to the model before export
-calibration_passes: 4
+calibration_passes: 128
 # Model configuration section
 model:
   # Number of attention heads
@@ -55,7 +55,7 @@ build:
   # Maximum bit-width of quantizers converted to multi-thresholds
   max_multithreshold_bit_width: 16
   # Maximum width of MVAU stream per PE
-  mvau_wwidth_max: 512
+  mvau_wwidth_max: 2048
 #  # Optional: Start the build from a specific step
 #  start_step: "step_tidy_up_pre_attention"
 #  # Optional: Stop the build after a specific step

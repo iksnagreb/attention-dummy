@@ -11,3 +11,5 @@ git+https://github.com/iksnagreb/brevitas.git@34c350afde0a69b7a39b13eb4748b979bd
 git+https://github.com/iksnagreb/qonnx.git@finn/pull/901
 git+https://github.com/iksnagreb/finn.git@v0.10/merge/attention
 git+https://github.com/maltanar/pyverilator.git@766e457465f5c0dd315490d7b9cc5d74f9a76f4f
+
+tqdm~=4.66.4

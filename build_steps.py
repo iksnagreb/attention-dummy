@@ -519,7 +519,9 @@ class ApplyConfig(Transformation):
 
 
 # Custom build step trying to set appropriate FIFO sizes for the transformer
-def set_fifo_depths(seq_len: int, emb_dim: int):  # noqa: emb_dim
+def set_fifo_depths(
+        seq_len: int, emb_dim: int, uram_threshold: int = 32  # noqa: emb_dim
+):
     # The wrapping function is a generator and this is the actual build step
     # function taking the model and build configuration
     def step_set_fifo_depths(model: ModelWrapper, cfg: DataflowBuildConfig):
@@ -606,6 +608,24 @@ def set_fifo_depths(seq_len: int, emb_dim: int):  # noqa: emb_dim
                 model = model.transform(GiveUniqueNodeNames())
                 # Apply the configuration dictionary to the model graph
                 model = model.transform(ApplyConfig(config))
+
+        # Run over all nodes in the model graph once again to modify the
+        # inserted FIFOs
+        # Note: This overwrites the folding configuration...
+        # TODO: Find a better way to handle this
+        for index, node in enumerate(model.graph.node):
+            # Modify all RTL FIFO operators
+            if node.op_type == "StreamingFIFO_rtl":
+                # Convert this to the custom-op instance for easy access to node
+                # attributes
+                inst = getCustomOp(node)
+                # Check the depth of the FIFO: If this is not a shallow FIFO,
+                # implement this via the vivado strategy in URAM
+                if inst.get_nodeattr("depth") >= uram_threshold:
+                    # Change the implementation style to vivado
+                    inst.set_nodeattr("impl_style", "vivado")
+                    # Set the resource type for the memory to URAM
+                    inst.set_nodeattr("ram_style", "ultra")
 
         # Hardware attributes to be extracted from each node
         hw_attrs = {

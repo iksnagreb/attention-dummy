@@ -4,13 +4,13 @@ defaults:
   ScaledDotProductAttention_hls:
     # Type of memory to be used for internal buffer storage
     #   Options: auto, block, distributed, ultra
-    ram_style: distributed
+    ram_style: block
     # Type of memory to be used for threshold storage
     #   Options: auto, block, distributed
-    ram_style_thresholds: distributed
+    ram_style_thresholds: block
     # Type of memory to be used fo the attention mask (if present)
     #   Options: auto, block, distributed
-    ram_style_mask: distributed
+    ram_style_mask: block
     # Resource type to be used for implementing multiplications/MACs
     #   Options: auto, lut or dsp
     mac_resource: lut
@@ -30,10 +30,10 @@ defaults:
     mem_mode: internal_decoupled
     # Type of memory to be used for weight storage if "internal_decoupled"
     #   Options: auto, block, distributed, ultra
-    ram_style: distributed
+    ram_style: block
     # Type of memory to be used for threshold storage
     #   Options: auto, block, distributed
-    ram_style_thresholds: distributed
+    ram_style_thresholds: block
     # Makes weights writeable through AXI-lite interface at runtime
     runtime_writeable_weights: 0
   # Matrix vector activation unit implemented via RTL
@@ -47,7 +47,7 @@ defaults:
     mem_mode: internal_decoupled
     # Type of memory to be used for weight storage if "internal_decoupled"
     #   Options: auto, block, distributed, ultra
-    ram_style: distributed
+    ram_style: block
     # Makes weights writeable through AXI-lite interface at runtime
     runtime_writeable_weights: 0
   # Multi-thresholds implemented via HLS (applies to standalone thresholds)
