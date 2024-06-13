@@ -1,3 +1,6 @@
+# Tagging of metrics and verification aggregation to assist filtering experiment
+# sweeps
+tag: ""
 # Global seed to make evaluation reproducible
 seed: 12
 # Number of calibration passes to be applied to the model before export
