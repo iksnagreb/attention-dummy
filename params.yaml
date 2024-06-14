@@ -59,6 +59,8 @@ build:
   max_multithreshold_bit_width: 16
   # Maximum width of MVAU stream per PE
   mvau_wwidth_max: 2048
+  # FIFO nodes with depth larger than 32768 will be split
+  split_large_fifos: true
 #  # Optional: Start the build from a specific step
 #  start_step: "step_tidy_up_pre_attention"
 #  # Optional: Stop the build after a specific step

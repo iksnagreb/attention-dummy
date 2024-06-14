@@ -86,6 +86,7 @@ stages:
           standalone_thresholds: true
           max_multithreshold_bit_width: 16
           mvau_wwidth_max: 2048
+          split_large_fifos: true
         model.emb_dim: 8
         model.seq_len: 32
         seed: 12
@@ -131,16 +132,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: d82342fcf89da66256a0ac5bb2d6407c.dir
-      size: 93321471
+      md5: f906fcf4c3c844bba3b714098025175a.dir
+      size: 93317106
       nfiles: 915
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: d82342fcf89da66256a0ac5bb2d6407c.dir
-      size: 93321471
+      md5: f906fcf4c3c844bba3b714098025175a.dir
+      size: 93317106
       nfiles: 915
     - path: build/report/post_synth_resources.json
       hash: md5
