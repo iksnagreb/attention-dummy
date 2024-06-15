@@ -4,7 +4,7 @@ tag: ""
 # Global seed to make evaluation reproducible
 seed: 12
 # Number of calibration passes to be applied to the model before export
-calibration_passes: 256
+calibration_passes: 32
 # Model configuration section
 model:
   # Number of attention heads
