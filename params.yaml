@@ -4,23 +4,23 @@ tag: ""
 # Global seed to make evaluation reproducible
 seed: 12
 # Number of calibration passes to be applied to the model before export
-calibration_passes: 128
+calibration_passes: 256
 # Model configuration section
 model:
   # Number of attention heads
-  num_heads: 1
+  num_heads: 12
   # Number of attention block "layers"
   num_layers: 1
   # Enables/disables bias on linear layers
   bias: True
   # Size of the input/output embedding dimension
-  emb_dim: 8
+  emb_dim: 384
   # Size of the MLP layer dimension
-  mlp_dim: 32
+  mlp_dim: 1536
   # Length of the input sequence, i.e., context size
-  seq_len: 32
+  seq_len: 512
   # Number of bits to use for quantized representation
-  bits: 4
+  bits: 2
   # Type of normalization layer to use in the transformer blocks
   #   Options are: layer-norm, batch-norm and none
   norm: none

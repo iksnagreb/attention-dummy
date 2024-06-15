@@ -66,7 +66,7 @@ if __name__ == "__main__":
     # Seed all RNGs
     seed(params["seed"])
     # Make PyTorch behave deterministically if possible
-    torch.use_deterministic_algorithms(mode=True)
+    torch.use_deterministic_algorithms(mode=True, warn_only=True)
     # Create a model instance from the configuration parameters
     model = DummyTransformer(**params["model"])
     # Get the configured sequence length and embedding dimension to generate
@@ -74,6 +74,11 @@ if __name__ == "__main__":
     seq, dim = params["model"]["seq_len"], params["model"]["emb_dim"]
     # No gradient accumulation for calibration passes required
     with torch.no_grad():
+        # Check whether GPU training is available and select the appropriate
+        # device
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # Move the model to the training device
+        model = model.to(device)
         # Multiple passes of calibration might be necessary for larger/deep
         # models
         for _ in trange(0, params["calibration_passes"], desc="calibrating"):
@@ -81,7 +86,9 @@ if __name__ == "__main__":
             # Large batch to have more calibration samples. Otherwise, there is
             # too much deviation between this calibration and the verification
             # samples.
-            model(torch.rand(512, seq, dim))
+            model(torch.rand(128, seq, dim, device=device))
+        # Move the model back to the CPU
+        model = model.cpu()
     # Prevent export issue for missing affine normalization parameters
     model = patch_non_affine_norms(model)
     # Switch model to evaluation mode to have it fixed for export
