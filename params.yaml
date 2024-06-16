@@ -1,6 +1,6 @@
 # Tagging of metrics and verification aggregation to assist filtering experiment
 # sweeps
-tag: ""
+tag: model-scaling
 # Global seed to make evaluation reproducible
 seed: 12
 # Number of calibration passes to be applied to the model before export
@@ -8,15 +8,15 @@ calibration_passes: 32
 # Model configuration section
 model:
   # Number of attention heads
-  num_heads: 12
+  num_heads: 4
   # Number of attention block "layers"
   num_layers: 1
   # Enables/disables bias on linear layers
-  bias: True
+  bias: true
   # Size of the input/output embedding dimension
-  emb_dim: 384
+  emb_dim: 128
   # Size of the MLP layer dimension
-  mlp_dim: 1536
+  mlp_dim: 512
   # Length of the input sequence, i.e., context size
   seq_len: 512
   # Number of bits to use for quantized representation
@@ -41,7 +41,7 @@ build:
   # Directory to store the build outputs
   output_dir: build
   # Run synthesis to generate a .dcp for the stitched-IP output product
-  stitched_ip_gen_dcp: False
+  stitched_ip_gen_dcp: false
   # Target clock period, i.e., inverse of target frequency
   synth_clk_period_ns: 10.0
   # Board to target with the build
@@ -54,7 +54,7 @@ build:
   specialize_layers_config_file: specialize_layers.json
   # Force the implementation of standalone thresholds to be able to use RTL
   # implementation of the MVU
-  standalone_thresholds: True
+  standalone_thresholds: true
   # Maximum bit-width of quantizers converted to multi-thresholds
   max_multithreshold_bit_width: 16
   # Maximum width of MVAU stream per PE
@@ -69,6 +69,6 @@ build:
 metrics:
   # Path to the report file to be summarized
   # Note: remember to adjust the build directory when changing the config above
-  report: "build/report/post_synth_resources.json"
+  report: build/report/post_synth_resources.json
   # Filter the report rows
-  filter: "(top)"
+  filter: (top)
