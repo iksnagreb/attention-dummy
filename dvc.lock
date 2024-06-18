@@ -18,12 +18,12 @@ stages:
           opset_version: 14
           do_constant_folding: true
         model:
-          num_heads: 12
+          num_heads: 1
           num_layers: 1
           bias: true
-          emb_dim: 384
-          mlp_dim: 1536
-          seq_len: 512
+          emb_dim: 32
+          mlp_dim: 128
+          seq_len: 480
           bits: 2
           norm: none
           mask: none
@@ -32,23 +32,23 @@ stages:
     outs:
     - path: attention.onnx
       hash: md5
-      md5: de3b41a0b3eb028070e15788902dfa2c
-      size: 7908298
+      md5: 6aa37281d8de4d851396b106dafc35d2
+      size: 145889
     - path: inp.npy
       hash: md5
-      md5: faa284b49c027e97e777d0813952b34d
-      size: 786560
+      md5: 5de27c10aa574611d08ea57d36ba44bf
+      size: 61568
     - path: out.npy
       hash: md5
-      md5: b080095de50197f383a1993e0f495e7f
-      size: 786560
+      md5: c09c2447063d88011c8b86e1c1d59f0a
+      size: 61568
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
     deps:
     - path: attention.onnx
       hash: md5
-      md5: de3b41a0b3eb028070e15788902dfa2c
-      size: 7908298
+      md5: 6aa37281d8de4d851396b106dafc35d2
+      size: 145889
     - path: build.py
       hash: md5
       md5: 5a5d3990e89720b9cbed9d91fc717eb0
@@ -59,16 +59,16 @@ stages:
       size: 37701
     - path: inp.npy
       hash: md5
-      md5: faa284b49c027e97e777d0813952b34d
-      size: 786560
+      md5: 5de27c10aa574611d08ea57d36ba44bf
+      size: 61568
     - path: noctua.sh
       hash: md5
       md5: f3e8cc342b63cddcd2e07bfe63f6518c
       size: 1832
     - path: out.npy
       hash: md5
-      md5: b080095de50197f383a1993e0f495e7f
-      size: 786560
+      md5: c09c2447063d88011c8b86e1c1d59f0a
+      size: 61568
     - path: run.sh
       hash: md5
       md5: 6e3e34149c16795c5a8424a51bdbf5f8
@@ -87,8 +87,8 @@ stages:
           max_multithreshold_bit_width: 16
           mvau_wwidth_max: 2048
           split_large_fifos: true
-        model.emb_dim: 384
-        model.seq_len: 512
+        model.emb_dim: 32
+        model.seq_len: 480
         seed: 12
       folding.yaml:
         defaults:
@@ -132,21 +132,21 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 78ade389b16afc9deb70c9579112fe3f.dir
-      size: 478769355
-      nfiles: 2214
+      md5: bd98fcd4bc58922cf225a710bfecb188.dir
+      size: 110372046
+      nfiles: 1078
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 78ade389b16afc9deb70c9579112fe3f.dir
-      size: 478769355
-      nfiles: 2214
+      md5: bd98fcd4bc58922cf225a710bfecb188.dir
+      size: 110372046
+      nfiles: 1078
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 2fff94c57e85177ea7f1e3927ab5a113
-      size: 27833
+      md5: e7c6325c3805a1fbddca086ed7f43c57
+      size: 17616
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -160,8 +160,8 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: faa23b097a6425e357bf792004ffa523
-      size: 80
+      md5: 6c70fb9711f68fec5e427ea7257655a3
+      size: 75
   folding:
     cmd: python -m make_folding
     deps:
@@ -201,8 +201,8 @@ stages:
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: b7f9f25cfbddb221b48fefc2b4e2320d.dir
-      size: 115827502
+      md5: bf28faee3413581abbef3e00b41c51f0.dir
+      size: 8397200
       nfiles: 9
     - path: verify.py
       hash: md5
