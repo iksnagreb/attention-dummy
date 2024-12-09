@@ -1,7 +1,10 @@
-# attention-dummy
-Quickly generate PyTorch/Brevitas Scaled Dot-Product Attention dummy operators
+# FINN-T
+Quickly generate PyTorch/Brevitas Scaled Dot-Product Attention operators
 for exploring [QONNX](https://github.com/fastmachinelearning/qonnx) and
 [FINN](https://github.com/Xilinx/finn) graph transformations
+
+This has been used to generate the "Model Scaling and Resource Breakdown" evaluation for our paper "FINN-T: Compiling Custom Dataflow Accelerators
+for Quantized Transformers" accepted at [FPT 2024](https://fpt2024.org/). More detailed descriptions and the complete end-to-end training and FINN-build flow will be added/linked soon.
 
 ## Setup
 Install the dependencies listed in the `requirements.txt`, for example via pip
