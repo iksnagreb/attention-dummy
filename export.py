@@ -1,3 +1,5 @@
+# System functionality like creating directories
+import os
 # Use the DVC api for loading the YAML parameters
 import dvc.api
 # Progressbar
@@ -86,7 +88,7 @@ if __name__ == "__main__":
             # Large batch to have more calibration samples. Otherwise, there is
             # too much deviation between this calibration and the verification
             # samples.
-            model(torch.rand(128, seq, dim, device=device))
+            model(torch.rand(32, seq, dim, device=device))
         # Move the model back to the CPU
         model = model.cpu()
     # Prevent export issue for missing affine normalization parameters
@@ -97,8 +99,10 @@ if __name__ == "__main__":
     x = torch.rand(1, seq, dim)
     # Compute attention output
     o = model(x)
+    # Create the output directory if it does not already exist
+    os.makedirs("outputs/", exist_ok=True)
     # Save the input and output data for verification purposes later
-    np.save("inp.npy", x.detach().numpy())
-    np.save("out.npy", o.detach().numpy())
+    np.save("outputs/inp.npy", x.detach().numpy())
+    np.save("outputs/out.npy", o.detach().numpy())
     # Export the model graph to QONNX
-    export_qonnx(model, (x,), "attention.onnx", **params["export"])
+    export_qonnx(model, (x,), "outputs/model.onnx", **params["export"])

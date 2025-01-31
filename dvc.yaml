@@ -20,11 +20,11 @@ stages:
     # Outputs produced by this stage which should be tracked and passed on to
     # the next stage
     outs:
-      # The dummy model exported as ONNX
-      - attention.onnx
-      # Input/Output pair in numpy format for verification during the build
-      - inp.npy
-      - out.npy
+      # The exported model onnx graph file
+      - outputs/model.onnx
+      # Sample input-output pair for verification
+      - outputs/inp.npy
+      - outputs/out.npy
   # Stage running the finn build of the dummy model configured in parameters
   build:
     # Command running a finn build of the model produced during setup
@@ -39,12 +39,16 @@ stages:
       - build.py
       # The custom build steps implemented in this package
       - build_steps.py
-      # The model export produced by the setup stage: This triggers rerunning
+      # Implementation details of the new custom build steps
+      - custom/apply_config.py
+      - custom/composed_transformation.py
+      - custom/streamline.py
+      # The model export produced by the export stage: This triggers rerunning
       # this stage when the model configuration changes
-      - attention.onnx
+      - outputs/model.onnx
       # Input/Output pair in numpy format for verification during the build
-      - inp.npy
-      - out.npy
+      - outputs/inp.npy
+      - outputs/out.npy
     # Parameters used by this stage
     params:
       # Track the model, RNG-seed and build section from the parameters file

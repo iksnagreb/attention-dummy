@@ -39,7 +39,7 @@ export:
 # FINN build configuration
 build:
   # Directory to store the build outputs
-  output_dir: build
+  output_dir: outputs/build
   # Run synthesis to generate a .dcp for the stitched-IP output product
   stitched_ip_gen_dcp: False
   # Target clock period, i.e., inverse of target frequency
@@ -67,8 +67,9 @@ build:
 #  stop_step: "step_hw_ipgen"
 # Metrics aggregation configuration
 metrics:
-  # Path to the report file to be summarized
-  # Note: remember to adjust the build directory when changing the config above
-  report: "build/report/post_synth_resources.json"
-  # Filter the report rows
-  filter: "(top)"
+    # Path to the report file to be summarized
+    # Note: remember to adjust the build directory when changing the config
+    # above
+    report: outputs/build/report/post_synth_resources.json
+    # Filter the report rows
+    filter: (top)
