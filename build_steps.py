@@ -54,7 +54,8 @@ from finn.transformation.streamline.reorder import (
     MoveTransposePastSplit,
     MoveTransposePastJoinConcat,
     MoveSqueezePastMultiThreshold,
-    MoveSqueezePastMatMul
+    MoveSqueezePastMatMul,
+    MoveMulPastAdd
 )
 # FINN streamlining transformations absorbing tensors/nodes into others
 from finn.transformation.streamline.absorb import (
@@ -139,10 +140,12 @@ from finn.transformation.fpgadataflow.prepare_rtlsim import PrepareRTLSim
 # Execute onnx model graphs from the dataflow parent for verification
 from finn.util.test import execute_parent
 
-# Custom transformation for exhaustively composing transformations
-from custom.composed_transformation import ComposedTransformation
+# Transformation for exhaustively composing transformations
+from qonnx.transformation.composed import ComposedTransformation
+
 # Custom st of streamlining transformations
-from custom.streamline import Streamline, MoveMulPastAdd
+from finn.transformation.streamline.streamline_plus import \
+    StreamlinePlus as Streamline
 
 
 # Prepares the graph to be consumed by FINN:
@@ -152,7 +155,7 @@ from custom.streamline import Streamline, MoveMulPastAdd
 #  BatchNorm to Mul and Add operations followed by some necessary cleanup
 # 3. Converts all QONNX Quant nodes to MultiThreshold operations which can
 #  absorb scales and biases during streamlining
-def prepare_graph(range_info: RangeInfo | None):
+def prepare_graph(range_info: RangeInfo):
     # Wrap the actual transformation/build step function
     def step_prepare_graph(model: ModelWrapper, cfg: DataflowBuildConfig):
         # Exhaustively apply the set of cleanup transformations

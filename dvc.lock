@@ -51,20 +51,12 @@ stages:
       size: 6905
     - path: build_steps.py
       hash: md5
-      md5: 2829bea41d8ba875f56243a270f9d9e7
-      size: 33358
+      md5: 4025dcf779731c43d34e314aa9f3431f
+      size: 33401
     - path: custom/apply_config.py
       hash: md5
       md5: 4c907c16f9d3e2f5377e36f153af40b8
       size: 2360
-    - path: custom/composed_transformation.py
-      hash: md5
-      md5: b77d9e6dd01758cdacc6599b54324d50
-      size: 3118
-    - path: custom/streamline.py
-      hash: md5
-      md5: 60f6f60ed63b8e80f47a5012ab80006b
-      size: 27155
     - path: noctua.sh
       hash: md5
       md5: f3e8cc342b63cddcd2e07bfe63f6518c
@@ -144,8 +136,8 @@ stages:
     outs:
     - path: outputs/build/
       hash: md5
-      md5: 489d507fb36772a795e1e41b24579e74.dir
-      size: 931099813
+      md5: 3678716c69ab0d306dedc2f5e78eb8c4.dir
+      size: 931090731
       nfiles: 2258
   metrics:
     cmd: python -m metrics
@@ -156,8 +148,8 @@ stages:
       size: 932
     - path: outputs/build/
       hash: md5
-      md5: 489d507fb36772a795e1e41b24579e74.dir
-      size: 931099813
+      md5: 3678716c69ab0d306dedc2f5e78eb8c4.dir
+      size: 931090731
       nfiles: 2258
     - path: outputs/build/report/post_synth_resources.json
       hash: md5
@@ -213,7 +205,7 @@ stages:
     deps:
     - path: outputs/build/verification_output/
       hash: md5
-      md5: 3cda59f8fb9a0c896de3c1a9c966012f.dir
+      md5: 42b4263fdef3e66173fa904175fabe38.dir
       size: 607836844
       nfiles: 6
     - path: verify.py

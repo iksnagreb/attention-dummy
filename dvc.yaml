@@ -41,8 +41,6 @@ stages:
       - build_steps.py
       # Implementation details of the new custom build steps
       - custom/apply_config.py
-      - custom/composed_transformation.py
-      - custom/streamline.py
       # The model export produced by the export stage: This triggers rerunning
       # this stage when the model configuration changes
       - outputs/model.onnx
